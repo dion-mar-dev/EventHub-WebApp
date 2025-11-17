@@ -5,6 +5,8 @@
 
 ## Group-P2-06 Information
 
+📦 Note: Public replica of the original working codebase used in RMIT COSC2299 Software Engineering project. All functionality remains intact.
+
 ### Project landing page
 
 * Dion Marinovic   - Scrum master           - (focus: DevOps & architecture)
