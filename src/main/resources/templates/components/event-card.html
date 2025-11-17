@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<!-- Thymeleaf namespaces enable server-side template processing and Spring Security integration -->
+<!-- xmlns:th provides standard Thymeleaf templating functionality for dynamic content rendering -->
+<!-- xmlns:sec provides Spring Security authentication and authorization checks for RSVP features -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<!-- Event Card Fragment - Reusable HTML component with dual display modes for different UI contexts. Acts like a function that returns HTML -->
+ <!-- Like a React component or Vue component - it's a self-contained,
+  reusable UI piece that accepts props and renders HTML based on those props.-->
+<!-- th:fragment creates named template section that can be included in other templates. gets inserted wherever you reference its name -->
+<!-- Supports two distinct layouts: compact (carousel) and full (main grid) with different information density -->
+<!-- Usage examples: -->
+<!-- Compact mode: th:include="components/event-card :: eventCard(event, 'compact')" for carousels -->
+ <!-- carousel cards are typically narrower (280-300px) due to horizontal space constraints. handle this with CSS (same HTML structure, different wrapper classes) or just use bootstrap class-->
+<!-- Full mode: th:include="components/event-card :: eventCard(event, 'full')" for main event listings -->
+<!-- Parameters: event (EventCardDTO object), mode (string: 'compact' or 'full') -->
+ <!-- carousel-card me-3 and col-md-6 mb-3 are bootstrap classes-->
+<div th:fragment="eventCard(event, mode)" 
+     th:class="${mode == 'compact'} ? 'flex-shrink-0 me-3' : 'col-sm-6 col-lg-4 col-xl-3 mb-2 mb-lg-3'"
+     th:style="${mode == 'compact'} ? 'width: 280px;' : ''">
+     
+    <!-- Bootstrap card component/class that creates a flexible/extensible content container with consistent height for grid alignment -->
+    <!-- h-100, bootstrap utility class, ensures all cards in a row have equal height regardless of content length -->
+    <!-- event-card class allows for custom CSS styling specific to event cards. placeholder/notImplemented for future custom styling -->
+    <div class="card h-100 event-card">
+        <!-- Bootstrap CSS class, card-body provides consistent internal padding and spacing of all card content -->
+        <div th:class="${mode == 'compact'} ? 'card-body p-2' : 'card-body'">
+            
+            <!-- Card Header Section - Full Mode Only -->
+            <!-- Full mode displays enhanced header with title and RSVP status in two-column layout -->
+            <!-- th:if conditionally renders this section only when mode parameter equals 'full' -->
+            <div th:if="${mode == 'full'}" class="d-flex justify-content-between align-items-start mb-2">
+                <!-- Event Title with Navigation Link -->
+                <!-- h5 provides appropriate semantic heading level for card titles -->
+                <!-- mb-0 removes default margin-bottom to control spacing precisely -->
+                <!-- flex-grow-1 allows title to take available space, me-2 adds margin before badge -->
+                <h5 class="card-title mb-0 flex-grow-1 me-2">
+                    <!-- th:href generates URL using Spring MVC URL builder with event ID path variable -->
+                    <!-- stretched-link makes entire card clickable by stretching this link across parent -->
+                    <!-- text-decoration-none removes default underline from Bootstrap link styling -->
+                    <a th:href="@{/events/{id}(id=${event.eventId})}" 
+                       class="text-decoration-none stretched-link" 
+                       th:text="${event.title}">Event Title</a>
+                </h5>
+                
+                <!-- Badge Section for Full Mode (top-right) -->
+                <!-- Organiser Badge - highest priority -->
+                <div sec:authorize="isAuthenticated()" th:if="${event.isOrganiser}">
+                    <span class="badge" style="background-color: #667eea; color: white;">
+                        <i class="fas fa-crown me-1"></i>Organiser
+                    </span>
+                </div>
+                
+                <!-- Going/Went Badge for authenticated users who RSVP'd (only if not organiser) -->
+                <div sec:authorize="isAuthenticated()" th:if="${!event.isOrganiser && event.userRsvpStatus}">
+                    <span class="badge bg-success">
+                        <i class="fas fa-check"></i> <span th:text="${event.isEventStarted ? 'Went' : 'Going'}">Going</span>
+                    </span>
+                </div>
+                
+                <!-- Full Badge for authenticated users when event is full and user not RSVP'd (only if not organiser) -->
+                <div sec:authorize="isAuthenticated()" th:if="${!event.isOrganiser && !event.isEventStarted && event.isEventFull && !event.userRsvpStatus}">
+                    <span class="badge bg-danger">
+                        <i class="fas fa-ban me-1"></i>Full
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Compact Mode Title -->
+            <!-- Compact mode uses smaller heading size (h6) to save vertical space -->
+            <!-- th:if ensures this title only renders in compact mode (carousel cards) -->
+            <div th:if="${mode == 'compact'}">
+                <!-- h6 provides smaller semantic heading appropriate for compact display -->
+                <!-- mb-2 provides moderate bottom margin for compact spacing -->
+                <h6 class="card-title mb-2">
+                    <!-- Same navigation functionality as full mode but with smaller visual weight -->
+                    <a th:href="@{/events/{id}(id=${event.eventId})}" 
+                       class="text-decoration-none stretched-link" 
+                       th:text="${event.title}">Event Title</a>
+                </h6>
+            </div>
+            
+            <!-- Category Badge and Keywords -->
+            <!-- Category badges and keyword badges provide visual categorization -->
+            <!-- mb-2 provides consistent spacing after badges section -->
+            <div class="mb-2 d-flex flex-wrap align-items-center gap-1">
+                <!-- Category Badge -->
+                <!-- Dynamic styling using th:style to apply category-specific background colors -->
+                <!-- th:style concatenates CSS properties with dynamic values from EventCardDTO -->
+                <!-- white text color ensures readability across all background colors -->
+                <!-- th:text displays category name from event data -->
+                <span class="badge"
+                      th:style="'background-color: ' + ${event.categoryColor} + '; color: white;'"
+                      th:text="${event.categoryName}">Category</span>
+
+                <!-- Keyword Badges -->
+                <!-- th:if ensures keywords section only renders when keywords exist -->
+                <!-- th:each iterates through all keywords in the event -->
+                <th:block th:if="${event.keywords != null and #lists.size(event.keywords) > 0}">
+                    <span th:each="keyword : ${event.keywords}"
+                          class="badge keyword-badge"
+                          th:style="'background-color: ' + ${keyword.color} + '1; border: 1px solid ' + ${keyword.color} + '; color: ' + ${keyword.color} + ';'"
+                          th:text="${keyword.name}">Keyword</span>
+                </th:block>
+
+                <!-- Compact Mode: Status Badges (inline with category) -->
+                <th:block th:if="${mode == 'compact'}" sec:authorize="isAuthenticated()">
+                    <!-- Organiser Badge - highest priority -->
+                    <span th:if="${event.isOrganiser}" class="badge small" style="background-color: #667eea; color: white;">
+                        <i class="fas fa-crown me-1"></i>Organiser
+                    </span>
+
+                    <!-- Going/Went Badge for users who RSVP'd (only if not organiser) -->
+                    <span th:if="${!event.isOrganiser && event.userRsvpStatus}" class="badge bg-success small">
+                        <i class="fas fa-check"></i> <span th:text="${event.isEventStarted ? 'Went' : 'Going'}">Going</span>
+                    </span>
+
+                    <!-- Full Badge for when event is full and user not RSVP'd (only if not organiser) -->
+                    <span th:if="${!event.isOrganiser && !event.isEventStarted && event.isEventFull && !event.userRsvpStatus}" class="badge bg-danger small">
+                        <i class="fas fa-ban me-1"></i>Full
+                    </span>
+
+                    <!-- Has Space Badge for when event has capacity and user not RSVP'd (only if not organiser) -->
+                    <span th:if="${!event.isOrganiser && !event.isEventStarted && !event.isEventFull && !event.userRsvpStatus}" class="badge bg-primary small">
+                        <i class="fas fa-door-open me-1"></i>Has Space
+                    </span>
+                </th:block>
+            </div>
+            <!-- Creator Info (Full Mode Only) -->
+            <div th:if="${mode == 'full'}" class="small text-muted mb-2">
+                <i class="fas fa-user-circle me-1"></i>
+                <span class="text-truncate" th:text="${event.creatorUsername}">username</span>
+            </div>
+            
+            <!-- Event Details - Full Mode Only -->
+            <!-- Full mode displays comprehensive event information with icons -->
+            <!-- text-muted provides subtle gray styling, small reduces font size -->
+            <div th:if="${mode == 'full'}" class="text-muted small mb-2">
+                <!-- Date and Time Section -->
+                <!-- #temporals.format provides Thymeleaf date/time formatting utilities -->
+                <div><i class="fas fa-calendar-alt me-1"></i> 
+                     <!-- Format date as 'MMM dd, yyyy' (e.g., 'Jan 15, 2025') -->
+                     <span th:text="${#temporals.format(event.eventDate, 'MMM dd, yyyy')}">Jan 01, 2025</span>
+                     <!-- Format time as 'h:mm a' (e.g., '2:30 PM') -->
+                     at <span th:text="${#temporals.format(event.eventTime, 'h:mm a')}">10:00 AM</span>
+                </div>
+                <!-- Location Section -->
+                <!-- map-marker-alt icon provides clear visual indicator for location -->
+                <div><i class="fas fa-map-marker-alt me-1"></i> 
+                     <span th:text="${event.location}">Event Location</span>
+                </div>
+                <!-- Attendee Count Section -->
+                <!-- users icon indicates people/capacity information -->
+                <!-- Dynamic styling: capacity-full class applied when event reaches max capacity -->
+                <div><i class="fas fa-users me-1"></i> 
+                     <!-- th:class conditionally applies CSS class based on capacity status -->
+                     <!-- Complex text expression handles optional maxAttendees (null check) -->
+                     <span th:class="${event.isEventFull} ? 'text-danger fw-bold' : ''"
+                           th:text="${event.attendeeCount} + ${event.maxAttendees != null ? '/' + event.maxAttendees + ' attendees' : ' attendees'}">45/60 attendees</span>
+                </div>
+            </div>
+            
+            <!-- Compact Mode Event Details -->
+            <!-- Compact mode shows essential information only - no attendee count to save space -->
+            <!-- Optimized for carousel display where space is limited -->
+            <div th:if="${mode == 'compact'}" class="small text-muted mb-2">
+                <!-- Date Section - Separate from time in compact mode -->
+                <!-- calendar icon (not calendar-alt) provides slightly different visual treatment -->
+                <div><i class="fas fa-calendar me-1"></i> 
+                     <span th:text="${#temporals.format(event.eventDate, 'MMM dd, yyyy')}">Jan 15, 2025</span>
+                </div>
+                <!-- Time Section - Standalone for better readability in compact space -->
+                <!-- clock icon clearly indicates time information -->
+                <div><i class="fas fa-clock me-1"></i> 
+                     <span th:text="${#temporals.format(event.eventTime, 'h:mm a')}">2:00 PM</span>
+                </div>
+                <!-- Location Section -->
+                <!-- Same location display as full mode but in compact context -->
+                <div><i class="fas fa-map-marker-alt me-1"></i> 
+                     <span th:text="${event.location}">Building 80, Room 03.15</span>
+                </div>
+            </div>
+            
+            <!-- Event Description -->
+            <!-- Dynamic description content based on display mode -->
+            <!-- Compact mode uses briefDescription (50 chars), Full mode uses full description (100 chars) -->
+            <!-- th:class applies different styling: compact gets smaller text and margins -->
+            <p th:class="${mode == 'compact'} ? 'small mb-2' : 'card-text mb-3'" 
+               th:text="${mode == 'compact' ? event.briefDescription : event.description}">Event description...</p>
+            
+            <!-- Action Buttons Section -->
+            <!-- Different button layouts based on display mode and available space -->
+            
+            <!-- Compact Mode: View Details Only -->
+            <!-- Simplified single-button interface for space-constrained carousel cards -->
+            <!-- d-grid makes button span full width of card -->
+            <div th:if="${mode == 'compact'}" class="d-grid">
+                <!-- Single action button linking to detailed event page -->
+                <!-- btn-sm provides smaller button size appropriate for compact cards -->
+                <!-- btn-outline-primary gives lighter visual weight than solid buttons -->
+                <a th:href="@{/events/{id}(id=${event.eventId})}" 
+                   class="btn btn-sm btn-outline-primary">View Details</a>
+            </div>
+            
+            <!-- Full Mode: Complete Action Set -->
+            <!-- Full mode provides comprehensive RSVP functionality with multiple action buttons -->
+            <!-- d-flex with gap-2 creates horizontal button layout with consistent spacing -->
+            <div th:if="${mode == 'full'}" class="d-flex gap-2">
+                
+                <!-- View Details Button -->
+                <!-- Primary button provides main navigation action to detailed event page -->
+                <!-- info-circle icon indicates informational/details action -->
+                <a th:href="@{/events/{id}(id=${event.eventId})}" 
+                   class="btn btn-primary btn-sm">
+                    <i class="fas fa-info-circle me-1"></i>View Details
+                </a>
+                
+                <!-- RSVP Actions for Authenticated Users -->
+                <!-- sec:authorize="isAuthenticated()" ensures RSVP features only show for logged-in users -->
+                <!-- Complex conditional logic handles all possible RSVP states -->
+                <div sec:authorize="isAuthenticated()">
+                    
+                    <!-- Case 1: Event Started -->
+                    <!-- When event has begun, no RSVP actions are possible -->
+                    <!-- Disabled button provides feedback about why RSVP is unavailable -->
+                    <span th:if="${event.isEventStarted}" class="btn btn-secondary btn-sm" disabled>
+                        <i class="fas fa-clock me-1"></i>Event Started
+                    </span>
+                    
+                    <!-- Case 2: Event Full & User Not RSVP'd -->
+                    <!-- Full badge now displayed in header section instead of inline with buttons -->
+                    
+                    <!-- Case 3: User Already RSVP'd - Cancel Form -->
+                    <!-- Condition: event hasn't started AND user has active RSVP -->
+                    <!-- POST form required for RSVP cancellation following REST principles -->
+                    <!-- d-inline prevents form from creating block-level spacing -->
+                    <form th:if="${!event.isEventStarted && event.userRsvpStatus}" 
+                          th:action="@{/rsvp/cancel}" method="post" class="d-inline">
+                        <!-- Hidden input passes event ID to controller for processing -->
+                        <input type="hidden" name="eventId" th:value="${event.eventId}" />
+                        <!-- outline-secondary provides subtle styling for destructive action -->
+                        <!-- times icon (X) clearly indicates cancellation action -->
+                        <button type="submit" class="btn btn-outline-secondary btn-sm position-relative" style="z-index: 2;">
+                            <i class="fas fa-times me-1"></i>Cancel RSVP
+                        </button>
+                    </form>
+                    
+                    <!-- Case 4: Available to RSVP -->
+                    <!-- Complex condition: event hasn't started AND has capacity AND user hasn't RSVP'd -->
+                    <!-- This is the ideal state where user can successfully RSVP -->
+                    <form th:if="${!event.isEventStarted && !event.isEventFull && !event.userRsvpStatus}"
+                          th:action="@{/rsvp/{eventId}(eventId=${event.eventId})}" method="post" class="d-inline">
+                        <!-- Hidden input provides event context to RSVP controller -->
+                        <input type="hidden" name="eventId" th:value="${event.eventId}" />
+                        <!-- btn-success provides positive green styling encouraging user action -->
+                        <!-- calendar-check icon reinforces successful scheduling/commitment -->
+                        <button type="submit" class="btn btn-success btn-sm position-relative" style="z-index: 2;">
+                            <i class="fas fa-calendar-check me-1"></i>RSVP
+                        </button>
+                    </form>
+                    
+                </div>
+                
+                <!-- Login Prompt for Anonymous Users -->
+                <!-- sec:authorize="!isAuthenticated()" only shows for non-logged-in users -->
+                <!-- Provides clear path for anonymous users to access RSVP functionality -->
+                <div sec:authorize="!isAuthenticated()">
+                    <!-- th:href includes returnUrl parameter for post-login redirect -->
+                    <!-- User will be redirected back to this event after successful login -->
+                    <!-- btn-success encourages positive action (registration/login) -->
+                    <a th:href="@{/login(returnUrl='/events/' + ${event.eventId})}" 
+                       class="btn btn-success btn-sm">
+                        <!-- sign-in-alt icon clearly indicates login action required -->
+                        <i class="fas fa-sign-in-alt me-1"></i>Login to RSVP
+                    </a>
+                </div>
+                
+            </div>
+            
+            
+        </div> <!-- End card-body -->
+    </div> <!-- End card event-card h-100 -->
+</div> <!-- End eventCard fragment -->
+
+</html>
+
+<!-- Future Enhancements (Post-MVP)
+JavaScript AJAX for RSVP without page reload (Task 7.5)
+Real-time attendee count updates
+Share functionality
+Animation effects on state changes
+-->

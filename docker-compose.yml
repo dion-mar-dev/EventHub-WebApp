@@ -1,0 +1,67 @@
+# IMPORTANT: For payment testing, run Stripe CLI in a separate terminal:
+#   stripe listen --forward-to localhost:8080/api/payments/webhook
+# Stripe CLI requires host machine authentication and cannot run inside containers.
+# See docs-guides/payment-feat-introduction.md for full setup instructions.
+
+services:
+  # MySQL Database Service
+  # FLYWAY INTEGRATION: Schema is now managed by Flyway (not manual SQL scripts)
+  # - On first run (empty volume): MySQL creates empty 'webapp' database
+  # - Spring Boot starts → Flyway runs migrations V1→V2→V3 → creates all tables
+  # - On restarts (existing volume): Flyway checks flyway_schema_history, skips already-applied migrations
+  # - Volume reuse is safe: Flyway won't re-run V1/V2/V3 if history table shows they're applied
+  mysql:
+    image: mysql:8.0
+    container_name: webapp-mysql
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: webapp  # Creates empty database on first initialization
+    ports:
+      - "3306:3306"
+    volumes:
+      # Auto-run schema on first startup (DISABLED - Flyway manages schema now)
+      # - ./src/main/resources/data-prod-schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      # Persist data across container restarts
+      # - First run: Empty volume → Flyway creates tables
+      # - Restarts: Existing volume → Flyway skips migrations (safe to reuse)
+      # - Clean slate: Use 'docker compose down -v' to wipe volumes and start fresh
+      - mysql_data:/var/lib/mysql
+    networks:
+      - webapp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  # Spring Boot Application Service
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webapp-springboot
+    environment:
+      # Activate devprod profile (local dev with MySQL + Stripe localhost URLs)
+      SPRING_PROFILES_ACTIVE: devprod
+      # Database connection (uses service name 'mysql' as hostname)
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: webapp
+      DB_USER: root
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - webapp-network
+
+# Named volume for MySQL data persistence
+volumes:
+  mysql_data:
+
+# Internal network for service communication
+networks:
+  webapp-network:
+    driver: bridge

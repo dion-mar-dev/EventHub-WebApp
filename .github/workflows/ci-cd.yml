@@ -1,0 +1,291 @@
+# Name displayed in GitHub Actions tab and build badges
+name: CI/CD Pipeline
+# CI/CD:
+# - CI: Builds code, runs tests, creates JAR file
+#   - Runs on: PRs to main, PR merges (auto), or manual with [run CI]/[run CD]
+# - CD: Builds and pushes Docker image to Docker Hub
+#   - Runs on: PR merges (auto), or manual with [run CD]
+#   - Skips on: Commits with no flags (saves VM minutes)
+#
+# Trigger Summary:
+# - PRs → CI only
+# - PR merges → CI + CD
+# - [run CI] → CI only
+# - [run CD] → CI + CD
+# - [run CI][run CD] → CI + CD (both flags)
+# - Manual UI trigger → CI + CD
+
+# Pull latest image from Docker Hub:
+# docker pull adfaon3343cz/eventhub:latest
+# Start containers (uses pre-built image from Docker Hub)
+# docker compose -f docker-compose.remote.yml up
+#
+# ECR Push: When you need fresh images in ECR, just update the AWS secrets in GitHub before running the workflow
+
+# When this workflow triggers
+on:
+  workflow_dispatch:  # Enables manual trigger from GitHub Actions tab
+  pull_request:
+    # CI: Run when PR is opened/updated targeting main
+    branches: [ main ]
+  push:
+    # CI + CD: Run when commits are pushed to main (after PR merge or direct push)
+    branches: [ main ]
+
+# Define the jobs to run
+jobs:
+  # Job ID (can be any name)
+  test:
+    name: Build, Test & Deploy
+    # Virtual machine type - ubuntu-latest is free and fast
+    runs-on: ubuntu-latest
+    # Run CI on: PRs, PR merges (auto-detected), manual UI trigger, or manual triggers [run CI]/[run CD]
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[run CI]') ||
+      contains(github.event.head_commit.message, '[run CD]') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, 'Merge pull request'))
+
+    # Sequential steps this job will execute.
+    steps:
+    # Checkout/download your repository code into the runner
+    # Runner: a fresh VM GitHub spins up to execute your workflow and then destroys after - a temporary clean computer each time
+    - uses: actions/checkout@v3
+    
+    # Install Java (Spring Boot requirement)
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3  # Pre-built action from GitHub marketplace: downloads and installs Java JDK, sets JAVA_HOME, adds to PATH
+      with:
+        java-version: '17'          # Match your project's Java version
+        distribution: 'temurin'     # OpenJDK distribution (reliable & free)
+    
+    # Cache downloaded Maven dependencies between runs (speeds up builds)
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2                 # Maven's local repository location
+        # Unique key - rebuilds cache if pom.xml changes
+        # hashFiles('**/pom.xml') generates a unique hash of pom.xml content
+        # If pom.xml changes → different hash → different key → cache miss → rebuilds cache
+        # If pom.xml unchanged → same hash → cache hit → reuses cached dependencies
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+    
+    # Execute unit tests - fails the build if any test fails
+    # For CI/CD, unit tests are perfect - fast, reliable, no external dependencies needed.
+    - name: Run tests with coverage
+      run: mvn clean test jacoco:report    # Maven command: clean old files, run tests, generate coverage
+    
+    # Display coverage summary in GitHub Actions logs
+    - name: Display coverage summary  
+      run: |
+        echo "=== Test Coverage Summary ==="
+        grep -o 'Total.*' target/site/jacoco/index.html | head -1 || echo "Coverage report generated at target/site/jacoco/index.html"
+    
+    # Auto-update README with current coverage percentage
+    - name: Update README coverage badge
+      if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Merge pull request')  # Update only on PR merge to main
+      run: |
+        COVERAGE=$(awk -F"," '{ instructions += $4 + $5; covered += $5 } END { print int(100*covered/instructions) }' target/site/jacoco/jacoco.csv)
+        COLOR=$([ $COVERAGE -gt 80 ] && echo "brightgreen" || ([ $COVERAGE -gt 60 ] && echo "yellow" || echo "red"))
+        sed -i "s/coverage-[0-9]*%25-[a-z]*/coverage-${COVERAGE}%25-${COLOR}/" README.md
+        
+        # Commit and push changes if README was modified
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        if ! git diff --staged --quiet; then
+          git commit -m "Update coverage badge to ${COVERAGE}% [skip ci]"
+          git push
+        fi
+    
+    # Compile and package into JAR - verifies code compiles (tests already ran above)
+    - name: Build application
+      run: mvn clean package -Dmaven.test.skip=true  # Skip tests - already ran with coverage
+
+    # CD Steps: Build and push Docker image to Docker Hub
+    # Runs on: PR merges, [run CD] flag, or manual UI trigger
+
+    # Login to Docker Hub
+    # Secrets are stored in GitHub repo settings (Settings → Secrets → Actions)
+    # DOCKERHUB_USERNAME = Docker Hub username (adfaon3343cz)
+    # DOCKERHUB_TOKEN = Docker Hub access token (created at hub.docker.com/settings/security)
+    # GitHub Actions automatically injects these values at runtime (never exposed in logs)
+    - name: Login to Docker Hub
+      if: |
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          (
+            contains(github.event.head_commit.message, 'Merge pull request') ||
+            contains(github.event.head_commit.message, '[run CD]')
+          )
+        )
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # Build and push to Docker Hub
+    - name: Build and push to Docker Hub
+      if: |
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          (
+            contains(github.event.head_commit.message, 'Merge pull request') ||
+            contains(github.event.head_commit.message, '[run CD]')
+          )
+        )
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:${{ github.sha }}
+
+    - name: Images published
+      if: |
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          (
+            contains(github.event.head_commit.message, 'Merge pull request') ||
+            contains(github.event.head_commit.message, '[run CD]')
+          )
+        )
+      run: |
+        echo "Docker Hub: ${{ secrets.DOCKERHUB_USERNAME }}/eventhub:latest"
+
+    # Deploy to Google Cloud VM
+    - name: Deploy to Google Cloud VM
+      continue-on-error: true
+      if: |
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          (
+            contains(github.event.head_commit.message, 'Merge pull request') ||
+            contains(github.event.head_commit.message, '[run CD]')
+          )
+        )
+      run: |
+        echo "${{ secrets.GCE_SSH_KEY }}" > gce-key.pem
+        chmod 600 gce-key.pem
+        ssh -i gce-key.pem -o StrictHostKeyChecking=no ${{ secrets.GCE_USERNAME }}@${{ secrets.GCE_VM_IP }} "\
+          cd team-project-group-p02-06 && \
+          git pull && \
+          sudo docker-compose -f docker-compose.remote.yml pull && \
+          sudo docker-compose -f docker-compose.remote.yml up -d && \
+          sudo docker image prune -f"
+        rm -f gce-key.pem
+
+# Performance optimization results (single job vs two-job approach):
+# - Old (2 VMs, duplicate tests, duplicate build): 5m 28s
+# - New (1 VM, tests once, build once): 2m 42s
+# - Savings: 2m 46s (~50% faster)
+
+# ========================================
+# Google Cloud VM Deployment Guide
+# ========================================
+#
+# PREREQUISITES:
+# 1. VM must be running (Compute Engine → VM instances)
+# 2. Required GitHub Secrets configured:
+#    - GCE_SSH_KEY: Private SSH key for VM access
+#    - GCE_USERNAME: VM username (e.g., dion_marinovic)
+#    - GCE_VM_IP: External IP address of the VM
+#
+# VM SETUP CHECKLIST:
+# 1. Docker installed and running on startup:
+#    sudo systemctl status docker
+#    sudo systemctl enable docker  # Ensures Docker starts on boot
+#
+# 2. Port forwarding configured (80 → 8080):
+#    sudo iptables -t nat -L PREROUTING -n -v  # Verify rule exists
+#    If missing, add with:
+#    sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+#    sudo netfilter-persistent save
+#
+# 3. Repository cloned on VM:
+#    cd ~/team-project-group-p02-06
+#    git pull  # Should work without password (credential helper configured)
+#
+# 4. SSH public key added to VM:
+#    Compute Engine → VM → Edit → SSH Keys section
+#
+# TROUBLESHOOTING:
+# - "Permission denied (publickey)": SSH key not added to VM or wrong username in GCE_USERNAME
+# - "Connection refused": Check VM firewall allows HTTP traffic (VPC Network → Firewall)
+# - "Container not starting": SSH into VM and run: sudo docker-compose -f docker-compose.remote.yml logs webapp
+# - "Schema validation errors": Database volume needs reset: sudo docker-compose -f docker-compose.remote.yml down -v
+# - "Ephemeral IP changed": Update GCE_VM_IP secret if VM was stopped/started (or reserve static IP)
+#
+# MANUAL DEPLOYMENT (if CI/CD fails):
+# SSH into VM and run:
+#   cd team-project-group-p02-06
+#   git pull
+#   sudo docker-compose -f docker-compose.remote.yml pull
+#   sudo docker-compose -f docker-compose.remote.yml up -d
+#
+# ACCESS APPLICATION:
+# - External URL: http://[GCE_VM_IP]  (port 80 forwards to 8080)
+# - Direct access: http://[GCE_VM_IP]:8080
+#
+# SECURITY:
+# - Keep the VM and Docker updated periodically:
+#   sudo apt update && sudo apt upgrade
+#
+# COST MANAGEMENT:
+# - VM runs 24/7 unless manually stopped (no auto-scaling to zero like Cloud Run)
+# - Stopping VM changes ephemeral IP (requires updating GCE_VM_IP secret)
+# - Consider reserving static IP if frequently stopping/starting VM
+#
+# SHUTDOWN PROCESS (to keep data but stop serving traffic):
+# Option 1 - Stop containers (fastest restart, keeps data):
+#   sudo docker-compose -f docker-compose.remote.yml stop
+#   # Restart later with: sudo docker-compose -f docker-compose.remote.yml start
+#
+# Option 2 - Remove containers but keep database volumes:
+#   sudo docker-compose -f docker-compose.remote.yml down
+#   # Restart later with: sudo docker-compose -f docker-compose.remote.yml up -d
+#
+# Option 3 - Full cleanup (deletes all data including database):
+#   sudo docker-compose -f docker-compose.remote.yml down -v
+#   # Fresh start: sudo docker-compose -f docker-compose.remote.yml up -d
+#
+# NOTE: VM stays running in all cases (IP address preserved). Site returns
+# "Connection refused" when containers are stopped. Use Option 1 for demos
+# where you want quick start/stop between presentations.
+#
+# CONTAINER MANAGEMENT:
+# Check running containers:
+#   sudo docker ps                    # Shows only running containers
+#   sudo docker ps -a                 # Shows all containers (including stopped)
+#
+# View container logs:
+#   sudo docker-compose -f docker-compose.remote.yml logs webapp
+#   sudo docker-compose -f docker-compose.remote.yml logs mysql
+#   sudo docker logs webapp-springboot-remote     # Direct container access
+#
+# Delete old/stopped containers:
+#   sudo docker container prune       # Remove all stopped containers
+#   sudo docker image prune           # Remove dangling images
+#   sudo docker system prune          # Remove stopped containers, unused networks, dangling images
+#   sudo docker system prune -a       # Remove ALL unused images (not just dangling)
+#
+# Force recreate containers (useful if compose file changed):
+#   sudo docker-compose -f docker-compose.remote.yml up -d --force-recreate
+#
+# ========================================
+# CI/CD Pipeline Notes
+# ========================================
+# This pipeline follows standard industry practices but is slightly simplified for student project:
+#  - No staging environment (deploys straight to "prod")
+#  - No advanced health checks after deploy
+#  - No rollback mechanism

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+    xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base/layout}">
+
+<head>
+    <!-- Page-specific meta and title -->
+    <th:block layout:fragment="head-extra">
+        <style>
+            /* Carousel container styles for horizontal scrolling */
+            /* Main container for the scroller and its controls */
+            .scrolling-wrapper {
+                position: relative;
+                margin-left: 60px;
+                margin-right: 60px;
+            }
+
+            /* The container that actually scrolls */
+            .scrolling-container {
+                display: flex;
+                align-items: stretch;
+                overflow-x: auto;
+                /* This creates the 'snap' effect when scrolling */
+                scroll-snap-type: x mandatory;
+                /* Hide the scrollbar */
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            .scrolling-container::-webkit-scrollbar {
+                display: none; /* Chrome, Safari, and Opera */
+            }
+
+            /* Each item in the scroller */
+            .scrolling-item {
+                /* This makes each item a snap target */
+                scroll-snap-align: start;
+                flex: 0 0 auto;
+                width: 90%;
+                margin: 0 0px;
+                display: flex;
+            }
+
+            /* Adjustig item width for different screen sizes */
+            @media (min-width: 576px) {
+                .scrolling-item {
+                    width: calc(100% / 2 - 1rem); /* 2 items visible */
+                }
+            }
+            @media (min-width: 992px) {
+                .scrolling-item {
+                    width: calc(100% / 3 - 1rem); /* 3 items visible */
+                }
+            }
+
+            /* Styling for the Prev/Next Arrow Buttons */
+            .scroll-arrow {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 10;
+                border: none;
+                background-color: #515dffa6;
+                border-radius: 20%;
+                width: 40px;
+                height: 40px;
+                color: #ffffff;
+                font-size: 1.5rem;
+                line-height: 1;
+                cursor: pointer;
+            }
+            .scroll-arrow:hover {
+                background-color: rgb(94, 94, 94);
+            }
+            /* Position of arrows */
+            .scroll-arrow.prev {
+                left: -60px;
+            }
+            .scroll-arrow.next {
+                right: -60px;
+            }
+
+/* Add padding to the scrolling container to prevent content from hiding under the arrows */
+.scrolling-container {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory; 
+    padding: 0 45px;
+    /* Hide the scrollbar */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+}
+.scrolling-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+}
+
+/* Tab styling to match the overall design */
+.nav-tabs .nav-link {
+    color: #667eea;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #ffffff;
+    background-color: #8b95f5;
+    border-color: #8b95f5;
+    border-bottom: 2px solid #8b95f5;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: transparent transparent #667eea transparent;
+    border-bottom: 2px solid #667eea;
+}
+
+.tab-content {
+    margin-top: 0;
+}
+
+/* Reduce gap between header and recommended section on home page */
+.container-fluid .row.mb-3:first-of-type {
+    margin-bottom: 0.75rem !important;
+}
+
+.filter-bg {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #667eea;
+}
+        </style>
+        <script>
+            // Refresh page when returning via back button to show updated RSVP states
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    location.reload();
+                }
+            });
+
+            // Keyword filtering functionality
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize Bootstrap tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+
+                const keywordCheckboxes = document.querySelectorAll('.keyword-filter-checkbox');
+                const keywordButtonText = document.getElementById('keywordButtonText');
+                const applyFilterBtn = document.getElementById('applyKeywordFilter');
+                const keywordRemoveBtns = document.querySelectorAll('.keyword-remove-btn');
+                const keywordDropdownMenu = document.querySelector('#keywordDropdown + .dropdown-menu');
+
+                // Update button text based on selected keywords
+                function updateKeywordButtonText() {
+                    const checkedBoxes = document.querySelectorAll('.keyword-filter-checkbox:checked');
+                    if (checkedBoxes.length === 0) {
+                        keywordButtonText.textContent = 'Select Keywords';
+                    } else if (checkedBoxes.length === 1) {
+                        const label = document.querySelector(`label[for="${checkedBoxes[0].id}"] .badge-outline`);
+                        keywordButtonText.textContent = label ? label.textContent : '1 Keyword';
+                    } else {
+                        keywordButtonText.textContent = `${checkedBoxes.length} Keywords`;
+                    }
+                }
+
+                // Initialize button text
+                updateKeywordButtonText();
+
+                // Prevent dropdown from closing when clicking inside
+                if (keywordDropdownMenu) {
+                    keywordDropdownMenu.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+                }
+
+                // Prevent dropdown from closing when clicking on labels
+                document.querySelectorAll('.form-check-label').forEach(label => {
+                    label.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                    });
+                });
+
+                // Update hidden inputs to match selected checkboxes
+                function updateKeywordHiddenInputs() {
+                    const hiddenInputsContainer = document.getElementById('keywordHiddenInputs');
+                    if (!hiddenInputsContainer) return;
+
+                    // Clear existing hidden inputs
+                    hiddenInputsContainer.innerHTML = '';
+
+                    // Add hidden input for each checked checkbox
+                    const checkedBoxes = document.querySelectorAll('.keyword-filter-checkbox:checked');
+                    checkedBoxes.forEach(checkbox => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'keywordIds';
+                        input.value = checkbox.value;
+                        hiddenInputsContainer.appendChild(input);
+                    });
+                }
+
+                // Update button text and hidden inputs when checkboxes change
+                keywordCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        updateKeywordButtonText();
+                        updateKeywordHiddenInputs();
+                    });
+                });
+
+                // Handle apply filter button
+                applyFilterBtn.addEventListener('click', function() {
+                    // Hidden inputs are already synced, just submit the form
+                    document.getElementById('filterForm').submit();
+                });
+
+                // Handle individual keyword removal from activity banner
+                keywordRemoveBtns.forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const keywordIdToRemove = this.getAttribute('data-keyword-id');
+                        
+                        // Get current URL parameters
+                        const urlParams = new URLSearchParams(window.location.search);
+                        
+                        // Get current keyword IDs
+                        const currentKeywords = urlParams.getAll('keywordIds');
+                        
+                        // Remove the specific keyword
+                        urlParams.delete('keywordIds');
+                        currentKeywords.forEach(id => {
+                            if (id !== keywordIdToRemove) {
+                                urlParams.append('keywordIds', id);
+                            }
+                        });
+                        
+                        // Navigate to new URL
+                        window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+                    });
+                });
+            });
+        </script>
+    </th:block>
+</head>
+
+<body>
+    <main layout:fragment="content">
+        <div class="container-fluid px-lg-5 px-3 py-3">
+            <!-- Page Header -->
+            <div class="row mb-3">
+                <div class="col">
+                    <h1 class="h3 d-inline">
+                        <i class="fas fa-university text-primary me-2"></i>Campus Events
+                    </h1>
+                    <span class="text-muted ms-2">Discover and join exciting events happening around campus</span>
+                </div>
+            </div>
+
+            <!-- Recommended Events Carousel-->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-star text-warning me-2"></i>
+                        <span sec:authorize="isAuthenticated()">Recommended for You</span>
+                        <span sec:authorize="!isAuthenticated()">Featured Events</span>
+                    </h6>
+                </div>
+                <div class="card-body p-2 p-md-3">
+                    <div th:if="${recommendedEvents != null and !recommendedEvents.empty}" class="scrolling-wrapper">
+                        <button id="scrollPrev" class="scroll-arrow prev" aria-label="Previous">&lt;</button>
+                        
+                        <div id="recommendedScroller" class="scrolling-container">
+                            <div class="scrolling-item" th:each="event : ${recommendedEvents}">
+                                <div th:replace="~{components/event-card :: eventCard(${event}, 'compact')}"></div>
+                            </div>
+                        </div>
+
+                        <button id="scrollNext" class="scroll-arrow next" aria-label="Next">&gt;</button>
+                    </div>
+
+                    <div th:if="${recommendedEvents == null or recommendedEvents.empty}">
+                        <div class="text-center text-muted p-5">
+                            <p>No recommendations to show right now. Select some interests in your profile to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tabs Section -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <ul class="nav nav-tabs card-header-tabs" id="eventsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" th:classappend="${activeTab == 'upcoming' or activeTab == null} ? 'active'" 
+                                th:href="@{/(tab=upcoming, page=0)}"
+                                role="tab">
+                                <i class="fas fa-calendar-week me-2"></i>
+                                <span th:if="${selectedCategoryId == null}">Upcoming Events</span>
+                                <span th:if="${selectedCategoryId != null}">
+                                    Events in <span th:text="${selectedCategoryName}">Category</span>
+                                </span>
+                                <span class="badge bg-secondary ms-2" 
+                                      th:if="${!isPastTab}" th:text="${events.totalElements}">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" th:classappend="${activeTab == 'past'} ? 'active'" 
+                                th:href="@{/(tab=past, page=0)}"
+                                role="tab">
+                                <i class="fas fa-history me-2"></i>Past Events
+                                <span class="badge bg-secondary ms-2" 
+                                      th:if="${isPastTab}" th:text="${events.totalElements}">0</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="tab-content" id="eventsTabContent">
+                    <!-- Upcoming Events Tab (keep existing content) -->
+                    <div class="tab-pane" th:classappend="${activeTab == 'upcoming' or activeTab == null} ? 'show active' : 'd-none'" 
+                         id="upcoming-events" role="tabpanel">
+                        <div class="card-body p-0">
+                            <!-- Search and Filter Section -->
+                            <div class="filter-bg p-3 mb-3">
+                    <!-- Functional form for category filtering -->
+                    <form th:action="@{/}" method="get" id="filterForm">
+                        <!-- Hidden inputs to preserve selected keywords when form submits -->
+                        <div id="keywordHiddenInputs">
+                            <input th:each="keywordId : ${selectedKeywordIds}"
+                                   type="hidden"
+                                   name="keywordIds"
+                                   th:value="${keywordId}">
+                        </div>
+                        <div class="row g-2">
+                            <!-- Search Input -->
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" name="searchTerm"
+                                            th:value="${searchTerm}"
+                                            placeholder="Search events..."
+                                            style="width: auto; min-width: 200px;">
+                                    </div>
+                                    <i class="fas fa-circle-question text-muted ms-2" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top" 
+                                       title="Search event titles and descriptions. Works with all filters."></i>
+                                </div>
+                            </div>
+
+                            <!-- Category Filter Dropdown (now functional) -->
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center">
+                                    <select class="form-select" name="categoryId" onchange="this.form.submit()"
+                                            style="width: auto; min-width: 140px;">
+                                        <option value="">All Categories</option>
+                                        <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.name}"
+                                            th:selected="${cat.id == selectedCategoryId}">Category Name</option>
+                                    </select>
+                                    <i class="fas fa-circle-question text-muted ms-2" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top" 
+                                       title="An event can be apart of only 1 category. Filter for different event categories by selecting different categories."></i>
+                                </div>
+                            </div>
+
+                            <!-- Date Filter -->
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center">
+                                    <input type="date" class="form-control" name="fromDate" 
+                                        th:value="${fromDate}" onchange="this.form.submit()"
+                                        title="Show events from this date onwards"
+                                        style="width: auto; min-width: 150px;">
+                                    <i class="fas fa-circle-question text-muted ms-2" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top" 
+                                       title="Shows events occurring after the selected date (not including the selected date itself)"></i>
+                                </div>
+                            </div>
+
+                            <!-- Keyword Filter -->
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle text-start" type="button" 
+                                                id="keywordDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                                                style="width: auto; min-width: 120px; max-width: 200px;">
+                                            <span id="keywordButtonText">Select Keywords</span>
+                                        </button>
+                                        <div class="dropdown-menu p-3" aria-labelledby="keywordDropdown" style="min-width: 300px;">
+                                            <div class="mb-2">
+                                                <small class="text-muted">Select multiple keywords to filter by:</small>
+                                            </div>
+                                            <div class="row g-1" th:if="${keywords != null and !keywords.empty}">
+                                                <div class="col-12" th:each="keyword : ${keywords}">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input keyword-filter-checkbox" 
+                                                               type="checkbox" 
+                                                               th:id="${'keywordFilter_' + keyword.id}"
+                                                               th:value="${keyword.id}"
+                                                               th:checked="${selectedKeywordIds != null and selectedKeywordIds.contains(keyword.id)}">
+                                                        <label class="form-check-label" 
+                                                               th:for="${'keywordFilter_' + keyword.id}">
+                                                            <span class="badge badge-outline"
+                                                                  th:style="'border-color: ' + ${keyword.color} + '; color: ' + ${keyword.color} + '; background-color: ' + ${keyword.color} + '20;'"
+                                                                  th:text="${keyword.name}">Keyword</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div th:if="${keywords == null or keywords.empty}" class="text-muted text-center py-2">
+                                                No keywords available
+                                            </div>
+                                            <div class="mt-3 d-grid">
+                                                <button type="button" class="btn btn-primary btn-sm" id="applyKeywordFilter">
+                                                    Apply Filter
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-circle-question text-muted ms-2" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="top" 
+                                       title="An event can have multiple keywords. Select any based on your needs to filter the results."></i>
+                                </div>
+                            </div>
+
+                            <!-- Filter Button (hidden since dropdown auto-submits) -->
+                            <div class="col-md-2">
+                                <noscript>
+                                    <!-- Show button for users without JavaScript -->
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-filter me-1"></i>Filter
+                                    </button>
+                                </noscript>
+                            </div>
+                        </div>
+                    </form>
+                            </div>
+
+            <!-- Events Content Section -->
+            <div class="p-3">
+            <!-- Active Filters Indicator -->
+            <div th:if="${selectedCategoryId != null or fromDate != null or (selectedKeywordIds != null and !selectedKeywordIds.empty)}" 
+                 class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-filter me-2"></i>
+                
+                <!-- Category Filter Display -->
+                <span th:if="${selectedCategoryId != null}">
+                    Filtering by category: <strong th:text="${selectedCategoryName}">Category Name</strong>
+                </span>
+                
+                <!-- Separator -->
+                <span th:if="${selectedCategoryId != null and (fromDate != null or (selectedKeywordIds != null and !selectedKeywordIds.empty))}"> • </span>
+                
+                <!-- Date Filter Display -->
+                <span th:if="${fromDate != null}">
+                    From date: <strong th:text="${#temporals.format(fromDate, 'MMM dd, yyyy')}">Date</strong>
+                </span>
+                
+                <!-- Separator -->
+                <span th:if="${fromDate != null and (selectedKeywordIds != null and !selectedKeywordIds.empty)}"> • </span>
+                
+                <!-- Keywords Filter Display -->
+                <div th:if="${selectedKeywordIds != null and !selectedKeywordIds.empty}" class="d-inline">
+                    <span>Keywords: </span>
+                    <span th:each="keyword : ${selectedKeywords}" class="me-2">
+                        <span class="badge badge-outline"
+                              th:style="'border-color: ' + ${keyword.color} + '; color: ' + ${keyword.color} + '; background-color: ' + ${keyword.color} + '20;'">
+                            <span th:text="${keyword.name}">Keyword</span>
+                            <span th:data-keyword-id="${keyword.id}"
+                                  class="keyword-remove-btn ms-1"
+                                  style="cursor: pointer; font-weight: bold;"
+                                  th:title="'Remove ' + ${keyword.name}">×</span>
+                        </span>
+                    </span>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="ms-3 d-inline">
+                    <a th:if="${selectedCategoryId != null}" 
+                       th:href="@{/(fromDate=${fromDate}, keywordIds=${selectedKeywordIds})}" 
+                       class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="fas fa-times me-1"></i>Clear Category
+                    </a>
+                    <a th:if="${fromDate != null}" 
+                       th:href="@{/(categoryId=${selectedCategoryId}, keywordIds=${selectedKeywordIds})}" 
+                       class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="fas fa-times me-1"></i>Clear Date
+                    </a>
+                    <a th:if="${selectedKeywordIds != null and !selectedKeywordIds.empty}" 
+                       th:href="@{/(categoryId=${selectedCategoryId}, fromDate=${fromDate})}" 
+                       class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="fas fa-times me-1"></i>Clear Keywords
+                    </a>
+                    <a th:href="@{/}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Clear All
+                    </a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Events Grid -->
+            <div class="row g-2 g-lg-3" th:if="${events != null and !events.empty}">
+                <th:block th:each="event : ${events.content}" th:if="${event != null}">
+                    <div th:replace="~{components/event-card :: eventCard(${event}, 'full')}"></div>
+                </th:block>
+            </div>
+
+            <!-- Pagination Controls -->
+            <nav th:if="${events != null and events.totalPages > 1 and !isPastTab}" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:classappend="${events.first} ? 'disabled'">
+                        <a class="page-link" 
+                           th:href="@{/(tab=upcoming, page=${events.number - 1}, size=24, categoryId=${selectedCategoryId}, fromDate=${fromDate}, keywordIds=${selectedKeywordIds}, searchTerm=${searchTerm})}">
+                            Previous
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            Page [[${events.number + 1}]] of [[${events.totalPages}]]
+                        </span>
+                    </li>
+                    <li class="page-item" th:classappend="${events.last} ? 'disabled'">
+                        <a class="page-link" 
+                           th:href="@{/(tab=upcoming, page=${events.number + 1}, size=24, categoryId=${selectedCategoryId}, fromDate=${fromDate}, keywordIds=${selectedKeywordIds}, searchTerm=${searchTerm})}">
+                            Next
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- No Events Message (General - when no filter applied) -->
+            <div class="row" th:if="${(events == null or events.empty) and selectedCategoryId == null}">
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Upcoming Events</h4>
+                        <p class="text-muted mb-4">There are currently no upcoming events to display.</p>
+                        <a th:href="@{/events/create}" class="btn btn-primary" sec:authorize="isAuthenticated()">
+                            <i class="fas fa-plus-circle me-2"></i>Create the First Event
+                        </a>
+                        <a th:href="@{/login}" class="btn btn-outline-primary" sec:authorize="!isAuthenticated()">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login to Create Events
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Events in Category Message (when filter applied but no results) -->
+            <div class="row" th:if="${(events == null or events.empty) and selectedCategoryId != null}">
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-search-minus fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Events Found</h4>
+                        <p class="text-muted mb-3">
+                            No upcoming events in the "<strong th:text="${selectedCategoryName}">Category</strong>"
+                            category.
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a th:href="@{/}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Clear Filter
+                            </a>
+                            <a th:href="@{/events/create}" class="btn btn-primary" sec:authorize="isAuthenticated()">
+                                <i class="fas fa-plus-circle me-2"></i>Create Event in This Category
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Past Events Tab -->
+                    <div class="tab-pane" th:classappend="${activeTab == 'past'} ? 'show active' : 'd-none'" 
+                         id="past-events" role="tabpanel">
+                        <div class="card-body p-0">
+                            <!-- Simple header -->
+                            <div class="p-3 border-bottom">
+                                <h5 class="mb-0">Recently Concluded Events</h5>
+                                <p class="text-muted small mb-0">Browse events that have already taken place</p>
+                            </div>
+                            
+                            <!-- Events Grid -->
+                            <div class="p-3">
+                                <div class="row g-2 g-lg-3" th:if="${isPastTab and events != null and !events.empty}">
+                                    <th:block th:each="event : ${events.content}" th:if="${event != null}">
+                                        <div th:replace="~{components/event-card :: eventCard(${event}, 'full')}"></div>
+                                    </th:block>
+                                </div>
+                                
+                                <!-- Pagination for past events -->
+                                <nav th:if="${isPastTab and events != null and events.totalPages > 1}" class="mt-4">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item" th:classappend="${events.first} ? 'disabled'">
+                                            <a class="page-link" th:href="@{/(tab=past, page=${events.number - 1}, size=24)}">
+                                                Previous
+                                            </a>
+                                        </li>
+                                        <li class="page-item disabled">
+                                            <span class="page-link">
+                                                Page [[${events.number + 1}]] of [[${events.totalPages}]]
+                                            </span>
+                                        </li>
+                                        <li class="page-item" th:classappend="${events.last} ? 'disabled'">
+                                            <a class="page-link" th:href="@{/(tab=past, page=${events.number + 1}, size=24)}">
+                                                Next
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                                
+                                <!-- No Past Events Message -->
+                                <div th:if="${isPastTab and (events == null or events.empty)}" class="text-center py-5">
+                                    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                    <h4 class="text-muted">No Past Events</h4>
+                                    <p class="text-muted">No past events to display at this time.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

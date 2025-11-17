@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+    xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base/layout}">
+
+<head>
+    <!-- Page-specific meta and title -->
+    <th:block layout:fragment="head-extra">
+        <style>
+            /* Tab styling to match the overall design */
+            .nav-tabs .nav-link {
+                color: #667eea;
+                border-bottom: 2px solid transparent;
+            }
+            
+            .nav-tabs .nav-link.active {
+                color: #667eea;
+                background-color: transparent;
+                border-color: transparent transparent #667eea transparent;
+                border-bottom: 2px solid #667eea;
+                font-weight: 600;
+            }
+            
+            .nav-tabs .nav-link:hover {
+                border-color: transparent transparent #667eea transparent;
+                border-bottom: 2px solid #667eea;
+            }
+            
+            .tab-content {
+                margin-top: 1.5rem;
+            }
+        </style>
+        <script>
+            // Refresh page when returning via back button to show updated RSVP states
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    location.reload();
+                }
+            });
+        </script>
+    </th:block>
+</head>
+
+<body>
+    <main layout:fragment="content">
+        <div class="container-fluid px-lg-5 px-3 py-3">
+            <!-- Page Header -->
+            <div class="row mb-3">
+                <div class="col">
+                    <h1 class="h2">
+                        <i class="fas fa-list text-primary me-2"></i>My Events
+                    </h1>
+                    <p class="text-muted"><strong>Organiser Dashboard</strong> - Manage your created events and track your RSVP'd events</p>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <ul class="nav nav-tabs card-header-tabs" id="myEventsTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="organiser-tab" data-bs-toggle="tab" data-bs-target="#organiser-events"
+                                type="button" role="tab" aria-controls="organiser-events" aria-selected="false">
+                                <i class="fas fa-user-crown me-2"></i>My Events (Organiser is You)
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="rsvp-tab" data-bs-toggle="tab" data-bs-target="#rsvp-events"
+                                type="button" role="tab" aria-controls="rsvp-events" aria-selected="true">
+                                <i class="fas fa-calendar-check me-2"></i>RSVP'd Events
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="myEventsTabContent">
+                    <!-- My Events (Organiser) Tab - Events created by user -->
+                    <div class="tab-pane fade" id="organiser-events" role="tabpanel" aria-labelledby="organiser-tab">
+                        <div class="card-body">
+                            <!-- Events Count Header -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-user-crown text-primary me-2"></i>
+                                        Events You've Created
+                                        <span class="badge bg-secondary ms-2" th:text="${#lists.size(createdEvents)}">0</span>
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <!-- Events Grid -->
+                            <div class="row g-2 g-lg-3" th:if="${createdEvents != null and !createdEvents.empty}">
+                                <th:block th:each="event, eventStat : ${createdEvents}" th:if="${eventStat.index < 30 and event != null}">
+                                    <div th:replace="~{components/event-card :: eventCard(${event}, 'full')}"></div>
+                                </th:block>
+                            </div>
+
+                            <!-- No Created Events Message -->
+                            <div class="row" th:if="${createdEvents == null or createdEvents.empty}">
+                                <div class="col-12">
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                                        <h4 class="text-muted">No Events Created</h4>
+                                        <p class="text-muted mb-4">You haven't created any events yet. Start organizing your first event!</p>
+                                        <a th:href="@{/events/create}" class="btn btn-primary">
+                                            <i class="fas fa-plus-circle me-2"></i>Create Event
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RSVP'd Events Tab - Currently implemented -->
+                    <div class="tab-pane fade show active" id="rsvp-events" role="tabpanel" aria-labelledby="rsvp-tab">
+                        <div class="card-body">
+                            <!-- Events Count Header -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-calendar-check text-primary me-2"></i>
+                                        Events You've RSVP'd To
+                                        <span class="badge bg-secondary ms-2" th:text="${#lists.size(rsvpEvents)}">0</span>
+                                    </h5>
+                                </div>
+                            </div>
+
+                            <!-- Events Grid -->
+                            <div class="row g-2 g-lg-3" th:if="${rsvpEvents != null and !rsvpEvents.empty}">
+                                <th:block th:each="event, eventStat : ${rsvpEvents}" th:if="${eventStat.index < 50 and event != null}">
+                                    <div th:replace="~{components/event-card :: eventCard(${event}, 'full')}"></div>
+                                </th:block>
+                            </div>
+
+                            <!-- No RSVP'd Events Message -->
+                            <div class="row" th:if="${rsvpEvents == null or rsvpEvents.empty}">
+                                <div class="col-12">
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                        <h4 class="text-muted">No RSVP'd Events</h4>
+                                        <p class="text-muted mb-4">You haven't RSVP'd to any events yet. Browse events to get started!</p>
+                                        <a th:href="@{/}" class="btn btn-primary">
+                                            <i class="fas fa-search me-2"></i>Browse Events
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

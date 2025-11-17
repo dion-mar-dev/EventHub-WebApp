@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{base/layout}">
+
+<head>
+    <th:block layout:fragment="head-extra">
+        <style>
+            .form-container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .char-counter {
+                font-size: 0.875rem;
+                color: #6c757d;
+                text-align: right;
+                margin-top: 0.25rem;
+            }
+
+            .char-counter.warning {
+                color: #ffc107;
+            }
+
+            .char-counter.danger {
+                color: #dc3545;
+            }
+
+            /* Constrain time input width to keep clock icon close to time display */
+            input[type="time"] {
+                width: auto;
+                max-width: 150px;
+                min-width: 120px; /* Prevent it from getting too small */
+            }
+
+            /* Constrain date input width to keep calendar icon close to date display */
+            input[type="date"] {
+                width: auto;
+                max-width: 180px;
+                min-width: 140px; /* Prevent it from getting too small */
+            }
+
+            /* Keyword Badge Styles */
+            .badge-outline {
+                border: 2px solid;
+                background-color: rgba(255, 255, 255, 0.9);
+                padding: 0.35em 0.65em;
+                font-weight: 500;
+            }
+
+            /* Hover effect for keyword badges in forms */
+            .form-check:hover .badge-outline {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: all 0.2s ease;
+            }
+
+            /* Selected state for keyword checkboxes */
+            .form-check-input:checked + .form-check-label .badge-outline {
+                font-weight: 600;
+                box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+            }
+
+            /* Keyword section styling */
+            .keyword-checkbox {
+                cursor: pointer;
+            }
+
+            .form-check-label {
+                cursor: pointer;
+                user-select: none;
+            }
+
+            /* Haptic feedback for confirm button */
+            .confirm-feedback {
+                animation: confirmPulse 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            }
+
+            @keyframes confirmPulse {
+                0% {
+                    transform: scale(1);
+                    background-color: var(--bs-success);
+                    border-color: var(--bs-success);
+                    box-shadow: none;
+                }
+                25% {
+                    transform: scale(0.85);
+                    background-color: #146c43;
+                    border-color: #146c43;
+                    box-shadow: 0 0 20px rgba(25, 135, 84, 0.8);
+                }
+                50% {
+                    transform: scale(1.1);
+                    background-color: #20c997;
+                    border-color: #20c997;
+                    box-shadow: 0 0 25px rgba(32, 201, 151, 0.9), 0 0 40px rgba(25, 135, 84, 0.5);
+                }
+                75% {
+                    transform: scale(0.95);
+                    background-color: #198754;
+                    border-color: #198754;
+                    box-shadow: 0 0 15px rgba(25, 135, 84, 0.6);
+                }
+                100% {
+                    transform: scale(1);
+                    background-color: var(--bs-success);
+                    border-color: var(--bs-success);
+                    box-shadow: 0 0 5px rgba(25, 135, 84, 0.3);
+                }
+            }
+
+            /* Confirmed input styling */
+            .custom-keyword-confirmed {
+                background-color: #f8f9fa !important;
+                color: #6c757d;
+            }
+        </style>
+    </th:block>
+</head>
+
+<body>
+    <main layout:fragment="content">
+        <div class="container py-4">
+            <div class="form-container">
+                <h2 class="mb-4">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>Create New Event
+                </h2>
+
+                <!-- Error Message Alert -->
+                <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <span th:text="${errorMessage}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <!-- Event Creation Form -->
+                <form th:action="@{/events/create}" th:object="${eventCreateDTO}" method="post">
+
+                    <!-- Title Field -->
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Event Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control"
+                            th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'" id="title" th:field="*{title}"
+                            maxlength="100" placeholder="Enter event title">
+                        <div class="char-counter" id="titleCounter">0 / 100</div>
+                        <div th:if="${#fields.hasErrors('title')}" class="invalid-feedback" th:errors="*{title}"></div>
+                    </div>
+
+                    <!-- Description Field -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description <span
+                                class="text-danger">*</span></label>
+                        <textarea class="form-control"
+                            th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'" id="description"
+                            th:field="*{description}" rows="5" maxlength="2000"
+                            placeholder="Describe your event"></textarea>
+                        <div class="char-counter" id="descriptionCounter">0 / 2000</div>
+                        <div th:if="${#fields.hasErrors('description')}" class="invalid-feedback"
+                            th:errors="*{description}"></div>
+                    </div>
+
+                    <!-- Category Dropdown -->
+                    <div class="mb-3">
+                        <label for="categoryId" class="form-label">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" th:classappend="${#fields.hasErrors('categoryId')} ? 'is-invalid'"
+                            id="categoryId" th:field="*{categoryId}">
+                            <option value="">Select a category</option>
+                            <option th:each="category : ${categories}" th:value="${category.id}"
+                                th:text="${category.name}">Category Name</option>
+                        </select>
+                        <div th:if="${#fields.hasErrors('categoryId')}" class="invalid-feedback"
+                            th:errors="*{categoryId}"></div>
+                    </div>
+
+                    <!-- Keywords Section -->
+                    <div class="mb-3">
+                        <label class="form-label">Keywords <span class="text-muted">(max 5)</span></label>
+                        <div class="card">
+                            <div class="card-body">
+                                <!-- Existing Keywords Checkboxes -->
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-3 col-6" th:each="keyword : ${keywords}">
+                                        <div class="form-check">
+                                            <input class="form-check-input keyword-checkbox" 
+                                                   type="checkbox" 
+                                                   th:id="${'keyword_' + keyword.id}"
+                                                   name="keywordIds"
+                                                   th:value="${keyword.id}"
+                                                   th:checked="${eventCreateDTO.keywordIds != null and eventCreateDTO.keywordIds.contains(keyword.id)}">
+                                            <label class="form-check-label" 
+                                                   th:for="${'keyword_' + keyword.id}">
+                                                <span class="badge badge-outline"
+                                                      th:style="'border-color: ' + ${keyword.color} + '; color: ' + ${keyword.color} + '; background-color: ' + ${keyword.color} + '20;'"
+                                                      th:text="${keyword.name}">Keyword</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Custom Keywords Section -->
+                                <div class="row">
+                                    <div class="col-12">
+                                        <label class="form-label small">Add Custom Keywords</label>
+                                        <div id="customKeywordsContainer">
+                                            <!-- Dynamic custom keyword inputs will be added here -->
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addCustomKeywordBtn">
+                                            <i class="fas fa-plus"></i> Add Custom Keyword
+                                        </button>
+                                        <div class="form-text">16 character limit per keyword</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Keyword Counter -->
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <span id="keywordCount">0</span> / 5 keywords selected
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date and Time Row -->
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="eventDate" class="form-label">Event Date <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control"
+                                th:classappend="${#fields.hasErrors('eventDate')} ? 'is-invalid'" id="eventDate"
+                                th:field="*{eventDate}">
+                            <div th:if="${#fields.hasErrors('eventDate')}" class="invalid-feedback"
+                                th:errors="*{eventDate}"></div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="eventTime" class="form-label">Event Time <span
+                                    class="text-danger">*</span></label>
+                            <input type="time" class="form-control"
+                                th:classappend="${#fields.hasErrors('eventTime')} ? 'is-invalid'" id="eventTime"
+                                th:field="*{eventTime}">
+                            <div th:if="${#fields.hasErrors('eventTime')}" class="invalid-feedback"
+                                th:errors="*{eventTime}"></div>
+                        </div>
+                    </div>
+                    <div th:if="${#fields.hasErrors('eventInFuture')}" class="alert alert-danger" role="alert">
+                        <span th:errors="*{eventInFuture}"></span>
+                    </div>
+
+                    <!-- Location Field -->
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control"
+                            th:classappend="${#fields.hasErrors('location')} ? 'is-invalid'" id="location"
+                            th:field="*{location}" maxlength="255" placeholder="Enter venue or address">
+                        <div class="char-counter" id="locationCounter">0 / 255</div>
+                        <div th:if="${#fields.hasErrors('location')}" class="invalid-feedback" th:errors="*{location}">
+                        </div>
+                    </div>
+
+                    <!-- Capacity Field with Unlimited Option -->
+                    <div class="mb-3">
+                        <label class="form-label">Capacity</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control"
+                                th:classappend="${#fields.hasErrors('capacity')} ? 'is-invalid'" id="capacity"
+                                th:field="*{capacity}" min="1" placeholder="Number of attendees">
+                            <div class="input-group-text">
+                                <input class="form-check-input mt-0" type="checkbox" id="unlimitedCapacity"
+                                    th:field="*{unlimitedCapacity}">
+                                <label class="form-check-label ms-2" for="unlimitedCapacity">
+                                    Unlimited
+                                </label>
+                            </div>
+                        </div>
+                        <div th:if="${#fields.hasErrors('capacity')}" class="invalid-feedback d-block"
+                            th:errors="*{capacity}"></div>
+                        <div th:if="${#fields.hasErrors('capacityValid')}" class="invalid-feedback d-block"
+                            th:errors="*{capacityValid}"></div>
+                        <small class="form-text text-muted">Leave blank and check "Unlimited" for no capacity
+                            limit</small>
+                    </div>
+
+                    <!-- Price Field -->
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price (AUD)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="price"
+                                   th:field="*{price}" min="0" step="0.01"
+                                   placeholder="0.00">
+                        </div>
+                        <small class="form-text text-muted">Leave blank for free events</small>
+                    </div>
+
+                    <!-- Form Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a th:href="@{/home}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-save me-1"></i>Create Event
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript for client-side enhancements -->
+    <th:block layout:fragment="scripts">
+        <script th:src="@{/js/create-event.js}"></script>
+    </th:block>
+</body>
+
+</html>

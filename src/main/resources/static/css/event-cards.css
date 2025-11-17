@@ -1,0 +1,52 @@
+/* Task 7.6: Style Event Cards (Partial implementation needed) */
+
+/* Card hover effects */
+.event-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+/* Full mode cards - targeted by column wrapper */
+.col-sm-6 .card.h-100,
+.col-lg-4 .card.h-100,
+.col-xl-3 .card.h-100 {
+    min-height: 240px;
+}
+
+@media (min-width: 768px) {
+    .col-sm-6 .card.h-100,
+    .col-lg-4 .card.h-100,
+    .col-xl-3 .card.h-100 {
+        min-height: 260px;
+    }
+}
+
+/* Full capacity styling (already has text-danger class) */
+.text-danger.fw-bold {
+    font-size: 0.9rem;
+}
+
+/* Going badge enhancement */
+.badge-success {
+    background-color: #28a745 !important;
+}
+
+/* Keyword badge styling */
+.keyword-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.25em 0.5em;
+    border-radius: 0.35rem;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-6 {
+        padding: 0.5rem;
+    }
+}
+
+/* Mobile responsiveness - CSS targets .col-md-6 but event-card.html uses dynamic classes
+defer mobile responsiveness - it's not MVP critical. Mobile optimization can be a future enhancement.
+*/

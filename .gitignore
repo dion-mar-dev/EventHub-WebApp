@@ -1,0 +1,123 @@
+# ========================================
+# Secrets and Environment Configuration
+# ========================================
+# DO NOT commit files containing real API keys, secrets, or credentials
+env-vars-do-not-commit.md
+set-env-vars.sh
+application-local.properties
+.env
+.env.local
+.env.*.local
+
+# ========================================
+# Maven
+# ========================================
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ========================================
+# IDE Files
+# ========================================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ========================================
+# Operating System Files
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# ========================================
+# Spring Boot
+# ========================================
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ========================================
+# Logs
+# ========================================
+*.log
+logs/
+spring.log
+
+# ========================================
+# Temporary Files
+# ========================================
+*.tmp
+*.bak
+*.swp
+*.swo
+*~.nib
+*.class
+
+# ========================================
+# Application-Specific
+# ========================================
+# Photo uploads (local filesystem storage)
+uploads/
+
+# H2 Database files (if using file-based instead of in-memory)
+*.db
+*.mv.db
+*.trace.db
+
+# Google Cloud credentials
+*service-account*.json
+eventhub-gcs-service-account.json
+
+# SSH keys
+*.pem
+*.key
+gce-key.pem
+
+# ========================================
+# Docker
+# ========================================
+# Ignore Docker Compose override files (for local customization)
+docker-compose.override.yml
+docker-compose.local.yml

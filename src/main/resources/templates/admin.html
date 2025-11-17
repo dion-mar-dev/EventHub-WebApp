@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+    xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base/layout}">
+
+<head>
+    <th:block layout:fragment="head-extra">
+        <style>
+            .deactivated-event {
+                text-decoration: line-through;
+            }
+
+            .table th {
+                background-color: #f8f9fa;
+                font-weight: 600;
+            }
+
+            .filter-toggle {
+                margin-bottom: 1.5rem;
+            }
+        </style>
+    </th:block>
+</head>
+
+<body>
+    <main layout:fragment="content">
+        <div class="container-fluid px-lg-5 px-3 py-3">
+            <!-- Page Header -->
+            <div class="row mb-3">
+                <div class="col">
+                    <h1 class="h2">
+                        <i class="fas fa-tools text-danger me-2"></i>Admin Dashboard
+                    </h1>
+                    <p class="text-muted">Manage events and users</p>
+                </div>
+            </div>
+
+            <!-- Flash Messages -->
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <span th:text="${successMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${activeTab == 'future-events'} ? 'active'"
+                       th:href="@{/admin(tab=future-events)}">
+                        Future Events <span class="badge bg-secondary" th:text="${activeFutureCount + deactivatedFutureCount}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${activeTab == 'past-events'} ? 'active'"
+                       th:href="@{/admin(tab=past-events)}">
+                        Past Events <span class="badge bg-secondary" th:text="${activePastCount + deactivatedPastCount}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${activeTab == 'users'} ? 'active'"
+                       th:href="@{/admin(tab=users)}">
+                        Users <span class="badge bg-secondary" th:text="${activeUsersCount}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${activeTab == 'deactivated-users'} ? 'active'"
+                       th:href="@{/admin(tab=deactivated-users)}">
+                        Deactivated Users <span class="badge bg-secondary" th:text="${deactivatedUsersCount}">0</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content mt-3">
+                <!-- Future Events Tab -->
+                <div class="tab-pane fade" th:classappend="${activeTab == 'future-events'} ? 'show active'" id="future-events">
+                    <!-- Filter Toggle -->
+                    <div class="btn-group filter-toggle" role="group">
+                        <input type="radio" class="btn-check" name="futureEventFilter" id="futureActiveEvents"
+                            th:checked="${futureEventsFilter == 'active'}" onchange="updateFilter('future', 'active')">
+                        <label class="btn btn-outline-primary" for="futureActiveEvents">
+                            Active Events <span class="badge bg-primary" th:text="${activeFutureCount}">0</span>
+                        </label>
+
+                        <input type="radio" class="btn-check" name="futureEventFilter" id="futureDeactivatedEvents"
+                            th:checked="${futureEventsFilter == 'deactivated'}" onchange="updateFilter('future', 'deactivated')">
+                        <label class="btn btn-outline-primary" for="futureDeactivatedEvents">
+                            Deactivated Events <span class="badge bg-primary" th:text="${deactivatedFutureCount}">0</span>
+                        </label>
+                    </div>
+
+                    <!-- Events Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Event Title</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Organizer</th>
+                                    <th>RSVP Count</th>
+                                    <th>Category</th>
+                                    <th th:if="${futureEventsFilter == 'deactivated'}">Deactivated By</th>
+                                    <th>Actions <i class="fas fa-circle-question text-muted" data-bs-toggle="tooltip" data-bs-placement="top" title="Deactivates event from public view. Non-admins can no longer RSVP or view event details."></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="event : ${futureEvents.content}"
+                                    th:class="${event.deactivated} ? 'deactivated-event' : ''">
+                                    <td th:text="${event.title}">Event Title</td>
+                                    <td th:text="${#temporals.format(event.eventDate, 'MMM dd, yyyy')}">Date</td>
+                                    <td th:text="${#temporals.format(event.eventTime, 'h:mm a')}">Time</td>
+                                    <td th:text="${event.organizerUsername}">Organizer</td>
+                                    <td>
+                                        <span class="badge bg-secondary" th:text="${event.rsvpCount}">0</span>
+                                    </td>
+                                    <td th:text="${event.categoryName}">Category</td>
+                                    <td th:if="${futureEventsFilter == 'deactivated'}" th:text="${event.deactivatedByUsername}">
+                                    </td>
+                                    <td>
+                                        <form th:if="${!event.deactivated}" method="post"
+                                            th:action="@{/admin/events/{id}/deactivate(id=${event.eventId})}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Are you sure you want to deactivate this event?');">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-ban me-1"></i>Deactivate
+                                            </button>
+                                        </form>
+                                        <form th:if="${event.deactivated}" method="post"
+                                            th:action="@{/admin/events/{id}/reactivate(id=${event.eventId})}"
+                                            class="d-inline">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-check me-1"></i>Reactivate
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr th:if="${futureEvents.content.empty}">
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        No events found
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav th:if="${futureEvents.totalPages > 1}">
+                        <ul class="pagination">
+                            <li class="page-item" th:classappend="${futureEvents.first} ? 'disabled'">
+                                <a class="page-link"
+                                    th:href="@{/admin(futureEventsPage=${futureEvents.number - 1}, futureEventsFilter=${futureEventsFilter}, tab=${activeTab})}">Previous</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Page [[${futureEvents.number + 1}]] of [[${futureEvents.totalPages}]]
+                                </span>
+                            </li>
+                            <li class="page-item" th:classappend="${futureEvents.last} ? 'disabled'">
+                                <a class="page-link"
+                                    th:href="@{/admin(futureEventsPage=${futureEvents.number + 1}, futureEventsFilter=${futureEventsFilter}, tab=${activeTab})}">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Past Events Tab -->
+                <div class="tab-pane fade" th:classappend="${activeTab == 'past-events'} ? 'show active'" id="past-events">
+                    <!-- Filter Toggle -->
+                    <div class="btn-group filter-toggle" role="group">
+                        <input type="radio" class="btn-check" name="pastEventFilter" id="pastActiveEvents"
+                            th:checked="${pastEventsFilter == 'active'}" onchange="updateFilter('past', 'active')">
+                        <label class="btn btn-outline-primary" for="pastActiveEvents">
+                            Active Events <span class="badge bg-primary" th:text="${activePastCount}">0</span>
+                        </label>
+
+                        <input type="radio" class="btn-check" name="pastEventFilter" id="pastDeactivatedEvents"
+                            th:checked="${pastEventsFilter == 'deactivated'}" onchange="updateFilter('past', 'deactivated')">
+                        <label class="btn btn-outline-primary" for="pastDeactivatedEvents">
+                            Deactivated Events <span class="badge bg-primary" th:text="${deactivatedPastCount}">0</span>
+                        </label>
+                    </div>
+
+                    <!-- Events Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Event Title</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Organizer</th>
+                                    <th>RSVP Count</th>
+                                    <th>Category</th>
+                                    <th th:if="${pastEventsFilter == 'deactivated'}">Deactivated By</th>
+                                    <th>Actions <i class="fas fa-circle-question text-muted" data-bs-toggle="tooltip" data-bs-placement="top" title="Deactivates event from public view. Non-admins can no longer RSVP or view event details."></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="event : ${pastEvents.content}"
+                                    th:class="${event.deactivated} ? 'deactivated-event' : ''">
+                                    <td th:text="${event.title}">Event Title</td>
+                                    <td th:text="${#temporals.format(event.eventDate, 'MMM dd, yyyy')}">Date</td>
+                                    <td th:text="${#temporals.format(event.eventTime, 'h:mm a')}">Time</td>
+                                    <td th:text="${event.organizerUsername}">Organizer</td>
+                                    <td>
+                                        <span class="badge bg-secondary" th:text="${event.rsvpCount}">0</span>
+                                    </td>
+                                    <td th:text="${event.categoryName}">Category</td>
+                                    <td th:if="${pastEventsFilter == 'deactivated'}" th:text="${event.deactivatedByUsername}">
+                                    </td>
+                                    <td>
+                                        <form th:if="${!event.deactivated}" method="post"
+                                            th:action="@{/admin/events/{id}/deactivate(id=${event.eventId})}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Are you sure you want to deactivate this event?');">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-ban me-1"></i>Deactivate
+                                            </button>
+                                        </form>
+                                        <form th:if="${event.deactivated}" method="post"
+                                            th:action="@{/admin/events/{id}/reactivate(id=${event.eventId})}"
+                                            class="d-inline">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-check me-1"></i>Reactivate
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr th:if="${pastEvents.content.empty}">
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        No events found
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav th:if="${pastEvents.totalPages > 1}">
+                        <ul class="pagination">
+                            <li class="page-item" th:classappend="${pastEvents.first} ? 'disabled'">
+                                <a class="page-link"
+                                    th:href="@{/admin(pastEventsPage=${pastEvents.number - 1}, pastEventsFilter=${pastEventsFilter}, tab=${activeTab})}">Previous</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Page [[${pastEvents.number + 1}]] of [[${pastEvents.totalPages}]]
+                                </span>
+                            </li>
+                            <li class="page-item" th:classappend="${pastEvents.last} ? 'disabled'">
+                                <a class="page-link"
+                                    th:href="@{/admin(pastEventsPage=${pastEvents.number + 1}, pastEventsFilter=${pastEventsFilter}, tab=${activeTab})}">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Users Tab -->
+                <div class="tab-pane fade" th:classappend="${activeTab == 'users'} ? 'show active'" id="users">
+                    <!-- Search and Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Search by username or email..." 
+                                       id="usersSearchInput" th:value="${usersSearch}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="searchUsers()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <select class="form-select" id="usersFilterSelect" onchange="updateUserFilter()">
+                                    <option value="all" th:selected="${usersFilter == 'all'}">All Users</option>
+                                    <option value="creators" th:selected="${usersFilter == 'creators'}">Event Creators</option>
+                                    <option value="regular" th:selected="${usersFilter == 'regular'}">Regular Users</option>
+                                </select>
+                                <i class="fas fa-circle-question text-muted ms-2"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   title="Filter by user type: all users, those who created events, or regular attendees"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Join Date</th>
+                                    <th>Events Created</th>
+                                    <th>RSVPs Made</th>
+                                    <th>Actions <i class="fas fa-circle-question text-muted" data-bs-toggle="tooltip" data-bs-placement="top" title="Prevents user from logging in with new sessions. Existing sessions remain active until logout/expiry."></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="user : ${activeUsers != null ? activeUsers.content : {}}">
+                                    <td th:text="${user.username}">Username</td>
+                                    <td th:text="${user.email}">Email</td>
+                                    <td th:text="${#temporals.format(user.joinDate, 'MMM dd, yyyy')}">Join Date</td>
+                                    <td>
+                                        <span th:if="${user.eventsCreatedCount > 0}" 
+                                              class="badge bg-primary" th:text="${user.eventsCreatedCount}">0</span>
+                                        <span th:if="${user.eventsCreatedCount == 0}" 
+                                              class="badge bg-secondary" th:text="${user.eventsCreatedCount}">0</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${user.rsvpsMadeCount > 0}" 
+                                              class="badge bg-primary" th:text="${user.rsvpsMadeCount}">0</span>
+                                        <span th:if="${user.rsvpsMadeCount == 0}" 
+                                              class="badge bg-secondary" th:text="${user.rsvpsMadeCount}">0</span>
+                                    </td>
+                                    <td>
+                                        <form method="post" th:action="@{/admin/users/{id}/deactivate(id=${user.userId})}"
+                                              class="d-inline"
+                                              onsubmit="return confirm('Are you sure you want to deactivate this user?');">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-ban me-1"></i>Deactivate
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr th:if="${activeUsers == null || activeUsers.content.empty}">
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No users found
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav th:if="${activeUsers != null && activeUsers.totalPages > 1}">
+                        <ul class="pagination">
+                            <li class="page-item" th:classappend="${activeUsers.first} ? 'disabled'">
+                                <a class="page-link" th:href="@{/admin(usersPage=${activeUsers.number - 1}, usersSearch=${usersSearch}, usersFilter=${usersFilter}, tab=${activeTab})}">Previous</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Page [[${activeUsers.number + 1}]] of [[${activeUsers.totalPages}]]
+                                </span>
+                            </li>
+                            <li class="page-item" th:classappend="${activeUsers.last} ? 'disabled'">
+                                <a class="page-link" th:href="@{/admin(usersPage=${activeUsers.number + 1}, usersSearch=${usersSearch}, usersFilter=${usersFilter}, tab=${activeTab})}">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Deactivated Users Tab -->
+                <div class="tab-pane fade" th:classappend="${activeTab == 'deactivated-users'} ? 'show active'" id="deactivated-users">
+                    <!-- Search and Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Search by username or email..." 
+                                       id="deactivatedUsersSearchInput" th:value="${deactivatedUsersSearch}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="searchDeactivatedUsers()">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <select class="form-select" id="deactivatedUsersFilterSelect" onchange="updateDeactivatedUserFilter()">
+                                    <option value="all" th:selected="${deactivatedUsersFilter == 'all'}">All Users</option>
+                                    <option value="creators" th:selected="${deactivatedUsersFilter == 'creators'}">Event Creators</option>
+                                    <option value="regular" th:selected="${deactivatedUsersFilter == 'regular'}">Regular Users</option>
+                                </select>
+                                <i class="fas fa-circle-question text-muted ms-2"
+                                   data-bs-toggle="tooltip"
+                                   data-bs-placement="top"
+                                   title="Filter by user type: all users, those who created events, or regular attendees"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deactivated Users Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Join Date</th>
+                                    <th>Events Created</th>
+                                    <th>RSVPs Made</th>
+                                    <th>Deactivated By</th>
+                                    <th>Actions <i class="fas fa-circle-question text-muted" data-bs-toggle="tooltip" data-bs-placement="top" title="Prevents user from logging in with new sessions. Existing sessions remain active until logout/expiry."></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="user : ${deactivatedUsers != null ? deactivatedUsers.content : {}}">
+                                    <td th:text="${user.username}">Username</td>
+                                    <td th:text="${user.email}">Email</td>
+                                    <td th:text="${#temporals.format(user.joinDate, 'MMM dd, yyyy')}">Join Date</td>
+                                    <td>
+                                        <span th:if="${user.eventsCreatedCount > 0}" 
+                                              class="badge bg-primary" th:text="${user.eventsCreatedCount}">0</span>
+                                        <span th:if="${user.eventsCreatedCount == 0}" 
+                                              class="badge bg-secondary" th:text="${user.eventsCreatedCount}">0</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${user.rsvpsMadeCount > 0}" 
+                                              class="badge bg-primary" th:text="${user.rsvpsMadeCount}">0</span>
+                                        <span th:if="${user.rsvpsMadeCount == 0}" 
+                                              class="badge bg-secondary" th:text="${user.rsvpsMadeCount}">0</span>
+                                    </td>
+                                    <td th:text="${user.deactivatedByUsername}">Admin</td>
+                                    <td>
+                                        <form method="post" th:action="@{/admin/users/{id}/reactivate(id=${user.userId})}"
+                                              class="d-inline">
+                                            <input type="hidden" name="tab" th:value="${activeTab}" />
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-check me-1"></i>Reactivate
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <tr th:if="${deactivatedUsers == null || deactivatedUsers.content.empty}">
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        No deactivated users found
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <nav th:if="${deactivatedUsers != null && deactivatedUsers.totalPages > 1}">
+                        <ul class="pagination">
+                            <li class="page-item" th:classappend="${deactivatedUsers.first} ? 'disabled'">
+                                <a class="page-link" th:href="@{/admin(deactivatedUsersPage=${deactivatedUsers.number - 1}, deactivatedUsersSearch=${deactivatedUsersSearch}, deactivatedUsersFilter=${deactivatedUsersFilter}, tab=${activeTab})}">Previous</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Page [[${deactivatedUsers.number + 1}]] of [[${deactivatedUsers.totalPages}]]
+                                </span>
+                            </li>
+                            <li class="page-item" th:classappend="${deactivatedUsers.last} ? 'disabled'">
+                                <a class="page-link" th:href="@{/admin(deactivatedUsersPage=${deactivatedUsers.number + 1}, deactivatedUsersSearch=${deactivatedUsersSearch}, deactivatedUsersFilter=${deactivatedUsersFilter}, tab=${activeTab})}">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <th:block layout:fragment="scripts">
+        <script>
+            function updateFilter(type, filter) {
+                const params = new URLSearchParams(window.location.search);
+                if (type === 'future') {
+                    params.set('futureEventsFilter', filter);
+                    params.set('tab', 'future-events');
+                } else if (type === 'past') {
+                    params.set('pastEventsFilter', filter);
+                    params.set('tab', 'past-events');
+                }
+                window.location.href = '/admin?' + params.toString();
+            }
+
+            function searchUsers() {
+                const searchTerm = document.getElementById('usersSearchInput').value;
+                const filter = document.getElementById('usersFilterSelect').value;
+                const params = new URLSearchParams(window.location.search);
+                params.set('usersSearch', searchTerm);
+                params.set('usersFilter', filter);
+                params.set('usersPage', '0');
+                params.set('tab', 'users');
+                window.location.href = '/admin?' + params.toString();
+            }
+
+            function updateUserFilter() {
+                const filter = document.getElementById('usersFilterSelect').value;
+                const searchTerm = document.getElementById('usersSearchInput').value;
+                const params = new URLSearchParams(window.location.search);
+                params.set('usersFilter', filter);
+                params.set('usersSearch', searchTerm);
+                params.set('usersPage', '0');
+                params.set('tab', 'users');
+                window.location.href = '/admin?' + params.toString();
+            }
+
+            function searchDeactivatedUsers() {
+                const searchTerm = document.getElementById('deactivatedUsersSearchInput').value;
+                const filter = document.getElementById('deactivatedUsersFilterSelect').value;
+                const params = new URLSearchParams(window.location.search);
+                params.set('deactivatedUsersSearch', searchTerm);
+                params.set('deactivatedUsersFilter', filter);
+                params.set('deactivatedUsersPage', '0');
+                params.set('tab', 'deactivated-users');
+                window.location.href = '/admin?' + params.toString();
+            }
+
+            function updateDeactivatedUserFilter() {
+                const filter = document.getElementById('deactivatedUsersFilterSelect').value;
+                const searchTerm = document.getElementById('deactivatedUsersSearchInput').value;
+                const params = new URLSearchParams(window.location.search);
+                params.set('deactivatedUsersFilter', filter);
+                params.set('deactivatedUsersSearch', searchTerm);
+                params.set('deactivatedUsersPage', '0');
+                params.set('tab', 'deactivated-users');
+                window.location.href = '/admin?' + params.toString();
+            }
+
+            // Allow Enter key to trigger search
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize Bootstrap tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+                
+                const usersSearchInput = document.getElementById('usersSearchInput');
+                const deactivatedUsersSearchInput = document.getElementById('deactivatedUsersSearchInput');
+                
+                if (usersSearchInput) {
+                    usersSearchInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            searchUsers();
+                        }
+                    });
+                }
+                
+                if (deactivatedUsersSearchInput) {
+                    deactivatedUsersSearchInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            searchDeactivatedUsers();
+                        }
+                    });
+                }
+            });
+        </script>
+    </th:block>
+</body>
+
+</html>

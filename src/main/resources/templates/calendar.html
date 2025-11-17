@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base/layout}">
+<head>
+    <th:block layout:fragment="head-extra">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar - EventHub</title>
+    <style>
+        body { 
+            background: #f8f9fa; 
+            min-height: 100vh; 
+        }
+        
+        .card-form { 
+            border-radius: 12px; 
+            box-shadow: 0 6px 18px rgba(0,0,0,.08); 
+            background: #fff; 
+        }
+        
+        .btn-eventhub { 
+            background-color: #7b5fc8; 
+            border-color: #7b5fc8; 
+            color: #fff; 
+        }
+        
+        .btn-eventhub:hover { 
+            background-color: #6b4fc0; 
+            border-color: #6b4fc0; 
+            color: #fff; 
+        }
+        
+        .legend-item { 
+            display: inline-flex; 
+            align-items: center; 
+            margin-right: 20px; 
+        }
+        
+        .legend-color { 
+            width: 15px; 
+            height: 15px; 
+            border-radius: 3px; 
+            margin-right: 5px; 
+        }
+
+        /* Calendar Container */
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,.08);
+        }
+
+        /* Calendar Header */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .calendar-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: #7b5fc8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #6b4fc0;
+        }
+
+        /* Calendar Grid */
+        .calendar-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .calendar-grid th {
+            background: #f8f9fa;
+            color: #6c757d;
+            font-weight: 600;
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+            font-size: 0.9rem;
+        }
+
+        .calendar-grid td {
+            border: 1px solid #e9ecef;
+            width: 14.285%;
+            height: 120px; 
+            padding: 0;
+            vertical-align: top;
+            background: white;
+            position: relative;
+            max-width: 140px; 
+            min-width: 120px; 
+        }
+
+        .date-cell {
+            height: 100%;
+            padding: 4px;
+            position: relative;
+            overflow: hidden; 
+        }
+
+        .date-number {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+
+        .date-number.other-month {
+            color: #ccc;
+        }
+
+        .date-number.today {
+            background: #7b5fc8;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        /* Event Items  */
+        .event-list {
+            margin-top: 2px;
+            max-height: 90px;
+            overflow: hidden;
+        }
+
+        .event-item {
+            display: block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 1px 3px;
+            margin-bottom: 1px;
+            border-radius: 2px;
+            font-size: 0.6rem !important;
+            text-decoration: none;
+            border-left: 2px solid #1976d2;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            line-height: 1.2;
+            max-width: 100%; 
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .event-item:hover {
+            background: #bbdefb;
+            color: #0d47a1;
+            text-decoration: none;
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .event-item:active {
+            transform: translateX(0);
+        }
+
+        /* Different event colors based on category -*/
+        .event-sports { 
+            background: #fdf2e9; 
+            color: #fd7e14; 
+            border-left-color: #fd7e14; 
+        }
+        .event-sports:hover { 
+            background: #fcebdb; 
+            color: #e8650e; 
+        }
+
+        .event-business { 
+            background: #d1ecf1; 
+            color: #17a2b8; 
+            border-left-color: #17a2b8; 
+        }
+        .event-business:hover { 
+            background: #bee5eb; 
+            color: #117a8b; 
+        }
+
+        .event-technology { 
+            background: #cfe2ff; 
+            color: #007bff; 
+            border-left-color: #007bff; 
+        }
+        .event-technology:hover { 
+            background: #b6d4fe; 
+            color: #0056b3; 
+        }
+
+        .event-tech { 
+            background: #cfe2ff; 
+            color: #007bff; 
+            border-left-color: #007bff; 
+        }
+        .event-tech:hover { 
+            background: #b6d4fe; 
+            color: #0056b3; 
+        }
+
+        .event-music { 
+            background: #f8d7da; 
+            color: #e83e8c; 
+            border-left-color: #e83e8c; 
+        }
+        .event-music:hover { 
+            background: #f5c2c7; 
+            color: #d91a72; 
+        }
+
+        .event-education { 
+            background: #fff3cd; 
+            color: #ffc107; 
+            border-left-color: #ffc107; 
+        }
+        .event-education:hover { 
+            background: #ffecb5; 
+            color: #e0a800; 
+        }
+
+        .event-academic { 
+            background: #fff3cd; 
+            color: #ffc107; 
+            border-left-color: #ffc107; 
+        }
+        .event-academic:hover { 
+            background: #ffecb5; 
+            color: #e0a800; 
+        }
+
+        /* 默认样式 */
+        .event-professional { 
+            background: #d1ecf1; 
+            color: #17a2b8; 
+            border-left-color: #17a2b8; 
+        }
+        .event-professional:hover { 
+            background: #bee5eb; 
+            color: #117a8b; 
+        }
+
+        .event-arts { 
+            background: #f8d7da; 
+            color: #e83e8c; 
+            border-left-color: #e83e8c; 
+        }
+        .event-arts:hover { 
+            background: #f5c2c7; 
+            color: #d91a72; 
+        }
+
+        .event-social { 
+            background: #d1ecf1; 
+            color: #17a2b8; 
+            border-left-color: #17a2b8; 
+        }
+        .event-social:hover { 
+            background: #bee5eb; 
+            color: #117a8b; 
+        }
+
+        /* More events indicator */
+        .more-events {
+            font-size: 0.65rem;
+            color: #666;
+            text-align: center;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .calendar-grid td {
+                height: 80px;
+                max-width: 100px;
+            }
+            
+            .date-cell {
+                padding: 3px;
+            }
+            
+            .event-item {
+                font-size: 0.6rem;
+                padding: 1px 3px;
+            }
+            
+            .calendar-nav {
+                gap: 5px;
+            }
+            
+            .nav-btn {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .date-number.today {
+                width: 18px;
+                height: 18px;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+    </th:block>
+</head>
+<body>
+    <main layout:fragment="content">
+    <div class="container my-4">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1 class="h2"><i class="fas fa-calendar text-primary me-2"></i>Event Calendar</h1>
+                <p class="text-muted">View all campus events in calendar format</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-eventhub active" id="allEventsBtn">
+                        <i class="fas fa-calendar-alt"></i> All Events
+                    </button>
+                    <button type="button" class="btn btn-eventhub" id="myEventsBtn">
+                        <i class="fas fa-calendar-check"></i> My Events
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="card card-form mb-3">
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap align-items-center">
+                    <span class="me-3"><strong>Categories:</strong></span>
+                    <span class="legend-item"><span class="legend-color" style="background-color:#007bff;"></span> Technology</span>
+                    <span class="legend-item"><span class="legend-color" style="background-color:#e83e8c;"></span> Music</span>
+                    <span class="legend-item"><span class="legend-color" style="background-color:#17a2b8;"></span> Business</span>
+                    <span class="legend-item"><span class="legend-color" style="background-color:#ffc107;"></span> Education</span>
+                    <span class="legend-item"><span class="legend-color" style="background-color:#fd7e14;"></span> Sports</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Calendar -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <h3 class="calendar-title" id="calendarTitle">September 2025</h3>
+                <div class="calendar-nav">
+                    <button class="nav-btn" id="prevMonth">‹ Prev</button>
+                    <button class="nav-btn" id="todayBtn">Today</button>
+                    <button class="nav-btn" id="nextMonth">Next ›</button>
+                </div>
+            </div>
+
+            <table class="calendar-grid">
+                <thead>
+                    <tr>
+                        <th>Sunday</th>
+                        <th>Monday</th>
+                        <th>Tuesday</th>
+                        <th>Wednesday</th>
+                        <th>Thursday</th>
+                        <th>Friday</th>
+                        <th>Saturday</th>
+                    </tr>
+                </thead>
+                <tbody id="calendarBody">
+                    <!-- Calendar days will be generated here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Inject backend events data -->
+        <script th:inline="javascript">
+            // Get events data from backend - safe way to handle Thymeleaf data
+            try {
+                window.calendarEvents = [];
+                window.attendingEventIds = new Set(); 
+                
+                // Add events one by one to avoid syntax errors
+                /*[# th:each="e : ${events}"]*/
+                window.calendarEvents.push({
+                    id: /*[[${e.id}]]*/ 0,
+                    title: /*[[${e.title}]]*/ 'Event',
+                    date: /*[[${e.eventDate}]]*/ '2025-09-16',
+                    category: /*[[${e.category?.name}]]*/ 'General'
+                });
+                /*[/]*/
+                
+                // Add attending events from backend
+                /*[# th:each="ae : ${attendingEvents}"]*/
+                window.attendingEventIds.add(/*[[${ae.id}]]*/ 0);
+                /*[/]*/
+                
+            } catch (error) {
+                console.error('Error loading events:', error);
+                // Fallback test data
+                window.calendarEvents = [
+                    { id: 1, title: 'Sample Tech Event', date: '2025-09-16', category: 'Technology' },
+                    { id: 2, title: 'Music Concert', date: '2025-09-17', category: 'Music' },
+                    { id: 3, title: 'Academic Workshop', date: '2025-09-18', category: 'Education' },
+                    { id: 4, title: 'Sports Tournament', date: '2025-09-19', category: 'Sports' }
+                ];
+                window.attendingEventIds = new Set([1, 3]); 
+            }
+            
+            // Debug: log events data
+            console.log('Events loaded:', window.calendarEvents.length, 'events');
+            console.log('Attending events:', Array.from(window.attendingEventIds));
+            console.log('Events data:', window.calendarEvents);
+        </script>
+
+        <!-- Calendar JavaScript -->
+        <script>
+            class Calendar {
+                constructor() {
+                    this.currentDate = new Date();
+                    this.today = new Date();
+                    this.monthNames = [
+                        'January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'
+                    ];
+                    this.events = window.calendarEvents || [];
+                    this.attendingEventIds = window.attendingEventIds || new Set();
+                    this.showMyEventsOnly = false; 
+                    this.init();
+                }
+
+                init() {
+                    this.bindEvents();
+                    this.bindFilterEvents(); 
+                    this.render();
+                }
+
+                bindEvents() {
+                    document.getElementById('prevMonth').addEventListener('click', () => {
+                        this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                        this.render();
+                    });
+
+                    document.getElementById('nextMonth').addEventListener('click', () => {
+                        this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                        this.render();
+                    });
+
+                    document.getElementById('todayBtn').addEventListener('click', () => {
+                        this.currentDate = new Date();
+                        this.render();
+                    });
+                }
+
+                bindFilterEvents() {
+                    const allEventsBtn = document.getElementById('allEventsBtn');
+                    const myEventsBtn = document.getElementById('myEventsBtn');
+
+                    if (allEventsBtn) {
+                        allEventsBtn.addEventListener('click', () => {
+                            this.showMyEventsOnly = false;
+                            this.updateFilterButtons();
+                            this.render();
+                        });
+                    }
+
+                    if (myEventsBtn) {
+                        myEventsBtn.addEventListener('click', () => {
+                            this.showMyEventsOnly = true;
+                            this.updateFilterButtons();
+                            this.render();
+                        });
+                    }
+                }
+
+                updateFilterButtons() {
+                    const allEventsBtn = document.getElementById('allEventsBtn');
+                    const myEventsBtn = document.getElementById('myEventsBtn');
+
+                    if (this.showMyEventsOnly) {
+                        allEventsBtn.classList.remove('active');
+                        myEventsBtn.classList.add('active');
+                    } else {
+                        allEventsBtn.classList.add('active');
+                        myEventsBtn.classList.remove('active');
+                    }
+                }
+
+                render() {
+                    this.updateTitle();
+                    this.generateCalendar();
+                }
+
+                updateTitle() {
+                    const title = `${this.monthNames[this.currentDate.getMonth()]} ${this.currentDate.getFullYear()}`;
+                    document.getElementById('calendarTitle').textContent = title;
+                }
+
+                generateCalendar() {
+                    const year = this.currentDate.getFullYear();
+                    const month = this.currentDate.getMonth();
+                    
+                    // Get first day of month and number of days
+                    const firstDay = new Date(year, month, 1);
+                    const lastDay = new Date(year, month + 1, 0);
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                    const calendarBody = document.getElementById('calendarBody');
+                    calendarBody.innerHTML = '';
+
+                    // Generate 6 weeks
+                    for (let week = 0; week < 6; week++) {
+                        const row = document.createElement('tr');
+                        
+                        for (let day = 0; day < 7; day++) {
+                            const cellDate = new Date(startDate);
+                            cellDate.setDate(startDate.getDate() + (week * 7) + day);
+                            
+                            const cell = this.createDateCell(cellDate, month);
+                            row.appendChild(cell);
+                        }
+                        
+                        calendarBody.appendChild(row);
+                    }
+                }
+
+                createDateCell(date, currentMonth) {
+                    const cell = document.createElement('td');
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'date-cell';
+
+                    // Date number
+                    const dateNumber = document.createElement('div');
+                    dateNumber.className = 'date-number';
+                    dateNumber.textContent = date.getDate();
+
+                    // Check if it's other month
+                    if (date.getMonth() !== currentMonth) {
+                        dateNumber.classList.add('other-month');
+                    }
+
+                    // Check if it's today
+                    if (this.isSameDay(date, this.today)) {
+                        dateNumber.classList.add('today');
+                    }
+
+                    cellDiv.appendChild(dateNumber);
+
+                    // Event list
+                    const eventList = document.createElement('div');
+                    eventList.className = 'event-list';
+
+                    // Get events for this date
+                    const dayEvents = this.getEventsForDate(date);
+                    const maxVisible = 4; 
+                    
+                    dayEvents.slice(0, maxVisible).forEach(event => {
+                        const eventItem = document.createElement('a');
+                        eventItem.className = `event-item event-${this.getCategoryClass(event.category)}`;
+                        eventItem.href = `/events/${event.id}`;
+                        
+                        const truncatedTitle = event.title.length > 12 
+                            ? event.title.substring(0, 12) + '...' 
+                            : event.title;
+                        
+                        
+                        const isAttending = this.attendingEventIds.has(event.id);
+                        const displayTitle = isAttending ? '✓ ' + truncatedTitle : truncatedTitle;
+                        
+                        eventItem.textContent = displayTitle;
+                        eventItem.title = (isAttending ? 'You\'re attending: ' : '') + event.title; // 完整标题作为tooltip
+                        
+                        
+                        if (isAttending) {
+                            eventItem.style.fontWeight = 'bold';
+                            eventItem.style.borderLeftWidth = '3px';
+                        }
+                        
+                        
+                        eventItem.style.overflow = 'hidden';
+                        eventItem.style.textOverflow = 'ellipsis';
+                        eventItem.style.whiteSpace = 'nowrap';
+                        eventItem.style.width = '100%';
+                        eventItem.style.display = 'block';
+                        
+                        eventList.appendChild(eventItem);
+                    });
+
+                    // Show "more events" if there are additional events
+                    if (dayEvents.length > maxVisible) {
+                        const moreEvents = document.createElement('div');
+                        moreEvents.className = 'more-events';
+                        moreEvents.textContent = `+${dayEvents.length - maxVisible} more`;
+                        eventList.appendChild(moreEvents);
+                    }
+
+                    cellDiv.appendChild(eventList);
+                    cell.appendChild(cellDiv);
+
+                    return cell;
+                }
+
+                getEventsForDate(date) {
+                    const dateStr = this.formatDate(date);
+                    let events = this.events.filter(event => event.date === dateStr);
+                    
+
+                    if (this.showMyEventsOnly) {
+                        events = events.filter(event => this.attendingEventIds.has(event.id));
+                    }
+                    
+                    return events;
+                }
+
+                formatDate(date) {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+
+                isSameDay(date1, date2) {
+                    return date1.getFullYear() === date2.getFullYear() &&
+                           date1.getMonth() === date2.getMonth() &&
+                           date1.getDate() === date2.getDate();
+                }
+
+                getCategoryClass(category) {
+                    const categoryMap = {
+                        'Sports': 'sports',
+                        'Business': 'business',
+                        'Technology': 'technology',
+                        'Tech': 'technology',
+                        'Music': 'music',
+                        'Education': 'education',
+                        'Academic': 'education',
+                        'Professional': 'business',
+                        'Arts': 'music',
+                        'Social': 'business',
+                        'General': 'technology'
+                    };
+                    const result = categoryMap[category] || 'technology';
+                    console.log('Category mapping:', category, '->', result);
+                    return result;
+                }
+            }
+
+            // Initialize calendar when page loads
+            document.addEventListener('DOMContentLoaded', () => {
+                new Calendar();
+            });
+        </script>
+
+        <!-- Quick Stats -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card card-form text-center">
+                    <div class="card-body">
+                        <h4 class="text-primary" th:text="${eventsThisWeek}">0</h4>
+                        <small class="text-muted">Events This Week</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-form text-center">
+                    <div class="card-body">
+                        <h4 class="text-success" th:text="${attendingCount}">0</h4>
+                        <small class="text-muted">You're Attending</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-form text-center">
+                    <div class="card-body">
+                        <h4 class="text-warning" th:text="${recommendedCount}">0</h4>
+                        <small class="text-muted">Recommended</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card card-form text-center">
+                    <div class="card-body">
+                        <h4 class="text-info" th:text="${totalThisMonth}">0</h4>
+                        <small class="text-muted">Total This Month</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{base/layout}">
+
+<head>
+    <th:block layout:fragment="head-extra">
+        <style>
+            .category-card {
+                transition: transform 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+                height: 100%;
+            }
+            .category-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            }
+            .category-image {
+                height: 200px;
+                object-fit: cover;
+                width: 100%;
+            }
+            .stats-bar {
+                background-color: rgba(0,0,0,0.03);
+                border-radius: 10px;
+            }
+        </style>
+    </th:block>
+</head>
+<body>
+    <main layout:fragment="content">
+    <div class="container my-4">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h2"><i class="fas fa-th-large text-primary me-2"></i>Browse Event Categories</h1>
+                <p class="text-muted">Explore events by category to find what interests you most</p>
+            </div>
+        </div>
+
+        <!-- Statistics Bar (dynamic) -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="stats-bar p-3">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="mb-0" th:text="${totalEvents}">0</h4>
+                            <small class="text-muted">Total Events</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-0" th:text="${totalCategories}">0</h4>
+                            <small class="text-muted">Categories</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-0" th:text="${totalAttendees}">0</h4>
+                            <small class="text-muted">Total Attendees</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-0" th:text="${eventsThisWeek}">0</h4>
+                            <small class="text-muted">This Week</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="row g-4 mb-5" th:if="${categories != null}">
+            <div class="col-md-6 col-lg-3" th:each="cat : ${categories}">
+                <div class="card category-card h-100">
+                    <img class="card-img-top category-image"
+                         th:src="${#maps.containsKey(categoryImageUrls, cat.name) ? categoryImageUrls[cat.name] : 'https://source.unsplash.com/featured/600x300?'+ #strings.toLowerCase(#strings.replace(cat.name, ' ', ','))}"
+                         th:alt="${cat.name}" />
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0" th:text="${cat.name}">Category</h5>
+                            <span class="badge bg-primary">
+                                <span th:text="${#maps.containsKey(categoryUpcomingCounts, cat.id) ? categoryUpcomingCounts[cat.id] : 0}">0</span>
+                                <span> Events</span>
+                            </span>
+                        </div>
+                        <p class="card-text small text-muted" th:text="${cat.description}">Description</p>
+                        <a class="btn btn-primary btn-sm mt-auto w-100"
+                           th:href="@{/(tab='upcoming', page=0, categoryId=${cat.id})}">
+                            <i class="fas fa-arrow-right"></i> View Events
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </main>
+</body>
+</html>

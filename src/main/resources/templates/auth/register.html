@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<!-- Thymeleaf namespace enables server-side template processing -->
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <!-- responsive viewport meta tag ensures proper mobile rendering -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register - EventHub</title>
+    <!-- Bootstrap CDN for responsive UI framework -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN for icon library used throughout registration form -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Full-height layout with EventHub gradient background matching brand identity */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Flexbox centering for registration card - centers both horizontally and vertically */
+        .register-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+        }
+
+        /* Registration card styling with shadow and rounded corners */
+        .register-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-section i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        /* EventHub brand colors for consistency across application */
+        .btn-primary {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+            border-color: #5a67d8;
+        }
+
+        /* Categories selection section styling */
+        .categories-section {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            background-color: #f8f9fa;
+        }
+
+        .category-checkbox {
+            margin-bottom: 0.5rem;
+        }
+
+        footer {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Custom error styling for field validation messages */
+        .field-error {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation bar - doesn't extend layout.html due to modified navbar, manual edits required for auth pages -->
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <!-- th:href generates context-relative URL -->
+            <a class="navbar-brand" href="/" th:href="@{/}">
+                <i class="fas fa-calendar-alt me-2"></i>EventHub
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main registration container -->
+    <div class="register-container">
+        <div class="register-card">
+            <div class="logo-section">
+                <i class="fas fa-user-plus"></i>
+                <h2>Create Account</h2>
+                <p class="text-muted">Join EventHub today</p>
+            </div>
+
+            <!-- Registration form with Thymeleaf data binding -->
+            <!-- th:action="@{/register}" generates context-relative URL for form submission -->
+            <!-- th:object="${userRegistrationDTO}" binds form to DTO object passed from controller -->
+            <!-- method="post" required for form data submission and Spring Security CSRF protection -->
+            <form th:action="@{/register}" th:object="${userRegistrationDTO}" method="post">
+                <!-- Global validation errors display - only renders when global errors exist -->
+                <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger">
+                    <!-- th:each loops through global error collection from server-side validation -->
+                    <div th:each="error : ${#fields.globalErrors()}" th:text="${error}"></div>
+                </div>
+                
+                <!-- Username field with server-side validation and Bootstrap styling -->
+                <!-- mb-3 provides Bootstrap margin-bottom spacing between form fields -->
+                <div class="mb-3">
+                    <!-- for="username" creates accessibility link between label and input field -->
+                    <label for="username" class="form-label">Username</label>
+                    <!-- input-group creates Bootstrap component that combines input with prefix elements -->
+                    <div class="input-group">
+                        <!-- input-group-text styles the icon prefix area with matching borders and background -->
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <!-- th:field="*{username}" binds input to userRegistrationDTO.username property -->
+                        <!-- th:class conditionally applies is-invalid class based on server-side validation errors -->
+                        <!-- type="text" allows alphanumeric username input -->
+                        <!-- required attribute provides HTML5 client-side validation -->
+                        <input type="text" 
+                               class="form-control" 
+                               th:class="${#fields.hasErrors('username')} ? 'form-control is-invalid' : 'form-control'"
+                               id="username" 
+                               th:field="*{username}"
+                               placeholder="Enter username" 
+                               required>
+                    </div>
+                    <!-- Field-specific validation errors from Spring validation annotations -->
+                    <!-- th:if conditionally displays error div only when username field has validation errors -->
+                    <!-- th:errors="*{username}" displays all error messages for the username field -->
+                    <div th:if="${#fields.hasErrors('username')}" class="field-error" th:errors="*{username}"></div>
+                </div>
+
+                <!-- Email field with HTML5 validation and Bootstrap styling -->
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <div class="input-group">
+                        <!-- Envelope icon indicates email input field -->
+                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                        <!-- type="email" provides HTML5 email format validation and mobile keyboard optimization -->
+                        <!-- th:field="*{email}" binds to userRegistrationDTO.email property -->
+                        <!-- Conditional CSS class application based on server-side validation state -->
+                        <input type="email" 
+                               class="form-control" 
+                               th:class="${#fields.hasErrors('email')} ? 'form-control is-invalid' : 'form-control'"
+                               id="email" 
+                               th:field="*{email}"
+                               placeholder="Enter email address" 
+                               required>
+                    </div>
+                    <!-- Display email validation errors from server-side validation -->
+                    <div th:if="${#fields.hasErrors('email')}" class="field-error" th:errors="*{email}"></div>
+                </div>
+
+                <!-- Password field with security best practices -->
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <!-- Lock icon indicates password/security field -->
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <!-- type="password" masks input characters for security -->
+                        <!-- th:field="*{password}" binds to userRegistrationDTO.password property -->
+                        <!-- Placeholder hints at minimum password requirements -->
+                        <!-- Most major sites (Google, Facebook, etc.) don't use password visibility toggles on registration forms, only on login forms -->
+                        <input type="password" 
+                               class="form-control" 
+                               th:class="${#fields.hasErrors('password')} ? 'form-control is-invalid' : 'form-control'"
+                               id="password" 
+                               th:field="*{password}"
+                               placeholder="Enter password (min 8 characters)" 
+                               required>
+                    </div>
+                    <!-- Password validation errors from server-side validation (length, complexity, etc.) -->
+                    <div th:if="${#fields.hasErrors('password')}" class="field-error" th:errors="*{password}"></div>
+                </div>
+
+                <!-- Password confirmation field for validation -->
+                <div class="mb-3">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <div class="input-group">
+                        <!-- Lock icon maintains consistency with password field -->
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <!-- th:field="*{confirmPassword}" binds to userRegistrationDTO.confirmPassword property -->
+                        <!-- Server-side validation ensures this matches the password field -->
+                        <input type="password" 
+                               class="form-control" 
+                               th:class="${#fields.hasErrors('confirmPassword')} ? 'form-control is-invalid' : 'form-control'"
+                               id="confirmPassword" 
+                               th:field="*{confirmPassword}"
+                               placeholder="Confirm your password" 
+                               required>
+                    </div>
+                    <!-- Password confirmation validation errors (e.g., "Passwords do not match") -->
+                    <div th:if="${#fields.hasErrors('confirmPassword')}" class="field-error" th:errors="*{confirmPassword}"></div>
+                </div>
+
+                <!-- Categories selection section for user personalization -->
+                <div class="mb-3">
+                    <label class="form-label">Interested Categories</label>
+                    <!-- categories-section class provides custom styling with border and background -->
+                    <div class="categories-section">
+                        <!-- Bootstrap row for responsive checkbox layout -->
+                        <div class="row">
+                            <!-- th:each="category : ${categories}" iterates over categories collection passed from controller -->
+                            <!-- Creates one checkbox per category dynamically -->
+                            <div class="col-md-6" th:each="category : ${categories}">
+                                <div class="form-check category-checkbox">
+                                    <!-- Dynamic ID generation for unique checkbox identification -->
+                                    <!-- th:id="'category-' + ${category.id}" creates unique IDs like 'category-1', 'category-2' -->
+                                    <!-- th:value="${category.id}" sets the checkbox value to category's database ID -->
+                                    <!-- th:field="*{categoryIds}" binds to categoryIds collection in userRegistrationDTO -->
+                                    <!-- Spring automatically handles multiple checkbox values as a collection -->
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           th:id="'category-' + ${category.id}"
+                                           th:value="${category.id}"
+                                           th:field="*{categoryIds}">
+                                    <!-- th:for creates accessibility link between label and dynamically generated checkbox ID -->
+                                    <label class="form-check-label" th:for="'category-' + ${category.id}">
+                                        <!-- th:text="${category.name}" displays category name from database -->
+                                        <span th:text="${category.name}"></span>
+                                        <!-- Optional category description display with conditional rendering -->
+                                        <!-- th:if="${category.description}" only renders if description exists and is not empty -->
+                                        <!-- d-block makes description appear on new line below category name -->
+                                        <small class="text-muted d-block" th:if="${category.description}" th:text="${category.description}"></small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Category selection validation errors (e.g., "Please select at least one category") -->
+                        <div th:if="${#fields.hasErrors('categoryIds')}" class="field-error" th:errors="*{categoryIds}"></div>
+                    </div>
+                </div>
+
+                <!-- Submit button with full width Bootstrap styling -->
+                <!-- type="submit" triggers form submission to registration endpoint -->
+                <!-- w-100 class makes button span full container width for mobile-friendly design -->
+                <button type="submit" class="btn btn-primary w-100">
+                    <!-- User-plus icon with margin-end spacing indicates account creation action -->
+                    <i class="fas fa-user-plus me-2"></i>Create Account
+                </button>
+            </form>
+
+            <hr class="my-4">
+
+            <!-- Navigation link for existing users to login page -->
+            <div class="text-center">
+                <p class="mb-0">
+                    Already have an account? 
+                    <!-- th:href="@{/login}" generates context-relative URL to login page -->
+                    <!-- text-decoration-none removes default underline from link -->
+                    <a href="/login" th:href="@{/login}" class="text-decoration-none">
+                        Sign in here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer - doesn't extend layout.html due to modified navbar, manual edits required for auth pages -->
+    <footer class="py-3 mt-auto">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 EventHub - RMIT University</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<!-- Thymeleaf namespace enables server-side template processing -->
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - EventHub</title>
+    <!-- Bootstrap and Font Awesome CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Full-height layout with EventHub gradient background */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Flexbox centering for login card */
+        .login-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+        }
+
+        /* Login card styling */
+        .login-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-section i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        /* EventHub brand colors */
+        .btn-primary {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+            border-color: #5a67d8;
+        }
+
+        footer {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation bar - doesn't extend layout.html due to modified navbar, manual edits required for auth pages -->
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <!-- th:href generates context-relative URL -->
+            <a class="navbar-brand" href="/" th:href="@{/}">
+                <i class="fas fa-calendar-alt me-2"></i>EventHub
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main login container -->
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <i class="fas fa-calendar-alt"></i>
+                <h2>Sign In</h2>
+                <p class="text-muted">Welcome back to EventHub</p>
+            </div>
+
+            <!-- Conditional message display using Thymeleaf - only renders divs when controller passes message variables -->
+            <!-- th:if="${errorMessage}" - entire div only appears in DOM if errorMessage variable exists and is not null/empty -->
+            <div th:if="${errorMessage}" class="alert alert-danger" style="display: block;">
+                <!-- th:text="${errorMessage}" - displays actual error message from controller -->
+                <!-- Fallback text "Invalid username or password." only shows if Thymeleaf processing fails -->
+                <span th:text="${errorMessage}">Invalid username or password.</span>
+            </div>
+            <!-- alert-success class provides green Bootstrap styling for positive feedback -->
+            <div th:if="${logoutMessage}" class="alert alert-success" style="display: block;">
+                <!-- Displays when user successfully logs out and gets redirected to login page -->
+                <span th:text="${logoutMessage}">You have been successfully logged out.</span>
+            </div>
+            <!-- Displays when user completes registration and gets redirected to login page -->
+            <div th:if="${successMessage}" class="alert alert-success" style="display: block;">
+                <!-- th:text pulls dynamic message content from controller model -->
+                <span th:text="${successMessage}">Registration successful! Please log in.</span>
+            </div>
+            <!-- Displays when user session has expired and gets redirected to login page -->
+            <div th:if="${expiredMessage}" class="alert alert-warning" style="display: block;">
+                <!-- th:text displays session expiry message from controller -->
+                <span th:text="${expiredMessage}">Session expired. Please login again.</span>
+            </div>
+
+            <!-- Login form with Spring Security integration/binding -->
+            <!-- th:action="@{/login}" generates context-relative URL, Spring Security expects POST to /login endpoint -->
+            <!-- method="post" required by Spring Security for authentication processing -->
+            <form th:action="@{/login}" method="post">
+                <!-- Username/email input field with Bootstrap styling -->
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username or Email</label>
+                    <!-- input-group creates visual clean,single-line grouping with icon prefix -->
+                    <div class="input-group">
+                        <!-- Icon prefix using Font Awesome 'user' icon -->
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <!-- name="username" matches Spring Security's default username parameter -->
+                        <!-- id="username" links to label for accessibility -->
+                        <!-- required attribute provides browser-level validation -->
+                        <!-- autofocus automatically focuses this field when page loads -->
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Enter username or email"
+                            required autofocus>
+                    </div>
+                </div>
+            
+                <!-- Password input field with Bootstrap styling and Spring Security integration -->
+                <!-- mb-3 provides Bootstrap margin-bottom spacing between form fields -->
+                <div class="mb-3">
+                    <!-- for="password" creates accessibility link between label and input field -->
+                    <label for="password" class="form-label">Password</label>
+                    <!-- input-group creates Bootstrap component that combines input with prefix/suffix elements -->
+                    <div class="input-group">
+                        <!-- input-group-text styles the icon prefix area with matching borders and background -->
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        <!-- type="password" masks input characters for security -->
+                        <!-- name="password" is Spring Security standard parameter name for authentication -->
+                        <!-- id="password" matches label's for attribute for accessibility -->
+                        <!-- required attribute provides HTML5 client-side validation -->
+                        <!-- can add eye icon to make password unmasked for usability/accessbility -->
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            
+                <!-- Remember me functionality for persistent login sessions -->
+                <!-- form-check provides Bootstrap checkbox styling -->
+                <div class="mb-3 form-check">
+                    <!-- name="remember-me" matches Spring Security's remember-me parameter -->
+                     <!-- Spring Security automatically detects remember-me parameter in POST request, then triggers remember-me logic in SecurityConfig-->
+                    <!-- Checkbox allows users to stay logged in across browser sessions -->
+                    <input type="checkbox" class="form-check-input" id="remember-me" name="remember-me">
+                    <!-- Label linked to checkbox via for attribute for accessibility -->
+                    <label class="form-check-label" for="remember-me">
+                        Remember me
+                    </label>
+                </div>
+            
+                <!-- Submit button with full width Bootstrap styling -->
+                <!-- type="submit" triggers form submission to Spring Security login processor -->
+                <!-- w-100 class makes button span full container width -->
+                <button type="submit" class="btn btn-primary w-100">
+                    <!-- Sign-in icon with margin-end spacing -->
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                </button>
+            </form>
+
+            <hr class="my-4">
+
+            <!-- Registration navigation -->
+            <div class="text-center">
+                <p class="mb-0">
+                    Don't have an account?
+                    <a href="/register" th:href="@{/register}" class="text-decoration-none">
+                        Create one here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer - doesn't extend layout.html due to modified navbar, manual edits required for auth pages -->
+    <footer class="py-3 mt-auto">
+        <div class="container text-center">
+            <p class="text-muted mb-0">&copy; 2025 EventHub - RMIT University</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function (e) {
+            // toggle the type attribute
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            // toggle the eye icon
+            this.querySelector('i').classList.toggle('fa-eye');
+            this.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+    </script>
+</body>
+
+</html>

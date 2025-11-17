@@ -1,0 +1,49 @@
+========================================
+MANUAL DOCKER HUB PUSH - QUICK REFERENCE
+========================================
+
+When GitHub Actions minutes are exhausted, use these commands to manually
+build and push fresh images to Docker Hub.
+
+PREREQUISITES:
+- Docker Desktop running
+- Logged into Docker Hub: docker login -u adfaon3343cz
+
+COMMANDS (run from project root):
+
+1. Build JAR:
+   mvn clean package -Dmaven.test.skip=true
+
+2. Build Docker image:
+   docker build -t adfaon3343cz/eventhub:latest .
+
+3. Push to Docker Hub:
+   docker push adfaon3343cz/eventhub:latest
+
+4. Verify push succeeded:
+   https://hub.docker.com/r/adfaon3343cz/eventhub/tags
+   (Check "Last pushed" timestamp shows recent time)
+
+   Or via command line:
+curl -s "https://hub.docker.com/v2/repositories/adfaon3343cz/eventhub/tags/latest" | python3 -c "import sys, json; from datetime import datetime, timezone; data = json.load(sys.stdin); last_push = datetime.fromisoformat(data['last_updated'].replace('Z', '+00:00')); now = datetime.now(timezone.utc); delta = now - last_push; hours = int(delta.total_seconds() // 3600); minutes = int((delta.total_seconds() % 3600) // 60); print(f'Last pushed: {hours}h {minutes}m ago')"
+
+VERIFICATION:
+- Check image timestamp: docker images | grep eventhub
+- Test locally: ./validate-cicd-locally-dockerhub-pull.sh
+
+NOTES:
+- Push takes ~1-2 minutes on home internet (80MB upload)
+- Image will be available immediately on Docker Hub
+- VM will pull this image on next: sudo docker-compose -f docker-compose.remote.yml pull
+- Or CI/CD will auto-deploy if you trigger it manually later when minutes reset
+
+TROUBLESHOOTING:
+- "denied: requested access to the resource is denied"
+  → Run: docker login -u adfaon3343cz
+  → Enter Docker Hub password/token when prompted
+
+- Build fails with "No such file or directory: target/*.jar"
+  → Run step 1 first (Maven build)
+
+- Want to see build progress?
+  → Add --progress=plain to docker build command

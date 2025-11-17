@@ -1,0 +1,89 @@
+version: '3.8'
+
+# ========================================
+# DOCKER COMPOSE REMOTE - VM PRODUCTION DEPLOYMENT
+# ========================================
+# This compose file is designed for PRODUCTION use on Google Cloud VM.
+# - Uses pre-built image from Docker Hub (no local build required)
+# - Activates PROD profile (VM IP Stripe URLs, production webhook)
+# - Fast deployment: pulls image instead of building from source
+#
+# Usage on VM: sudo docker-compose -f docker-compose.remote.yml up -d
+#
+# NOTE: Do NOT use for local testing with Stripe payments.
+# For local testing, use docker-compose.yml with devprod profile instead.
+#
+# This demonstrates the CD pipeline output - pulling and running
+# the production-ready image that was built and pushed by GitHub Actions.
+# ========================================
+
+# IMPORTANT: For payment testing, run Stripe CLI in a separate terminal:
+#   stripe listen --forward-to localhost:8080/api/payments/webhook
+# Stripe CLI requires host machine authentication and cannot run inside containers.
+# See docs-guides/payment-feat-introduction.md for full setup instructions.
+
+services:
+  # MySQL Database Service
+  # FLYWAY INTEGRATION: Schema is now managed by Flyway (not manual SQL scripts)
+  # - On first run (empty volume): MySQL creates empty 'webapp' database
+  # - Spring Boot starts → Flyway runs migrations V1→V2→V3 → creates all tables
+  # - On restarts (existing volume): Flyway checks flyway_schema_history, skips already-applied migrations
+  # - Volume reuse is safe: Flyway won't re-run V1/V2/V3 if history table shows they're applied
+  mysql:
+    image: mysql:8.0
+    container_name: webapp-mysql-remote
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: webapp  # Creates empty database on first initialization
+    ports:
+      - "3306:3306"
+    volumes:
+      # Auto-run schema on first startup (DISABLED - Flyway manages schema now)
+      # - ./src/main/resources/data-prod-schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      # Persist data across container restarts
+      # - First run: Empty volume → Flyway creates tables
+      # - Restarts: Existing volume → Flyway skips migrations (safe to reuse)
+      # - Clean slate: Use 'docker compose -f docker-compose.remote.yml down -v' to wipe volumes
+      - mysql_data_remote:/var/lib/mysql
+    networks:
+      - webapp-network-remote
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  # Spring Boot Application Service - Using Docker Hub Image
+  webapp:
+    image: adfaon3343cz/eventhub:latest
+    container_name: webapp-springboot-remote
+    environment:
+      # Activate production profile
+      SPRING_PROFILES_ACTIVE: prod
+      # Database connection (uses service name 'mysql' as hostname)
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: webapp
+      DB_USER: root
+      # Google Cloud Storage credentials
+      GOOGLE_APPLICATION_CREDENTIALS: /app/eventhub-gcs-service-account.json
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount GCS service account credentials (read-only)
+      - ./eventhub-gcs-service-account.json:/app/eventhub-gcs-service-account.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - webapp-network-remote
+
+# Named volume for MySQL data persistence
+volumes:
+  mysql_data_remote:
+
+# Internal network for service communication
+networks:
+  webapp-network-remote:
+    driver: bridge

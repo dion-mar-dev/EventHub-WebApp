@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!-- Thymeleaf namespaces enable server-side template processing and Spring Security integration -->
+<!-- xmlns:th provides standard Thymeleaf templating functionality -->
+<!-- xmlns:sec provides Spring Security authentication and authorization checks -->
+<!-- xmlns:layout provides Layout Dialect functionality -->
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+
+<head>
+    <meta charset="utf-8">
+    <!-- responsive viewport meta tag ensures proper mobile rendering -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- dynamic page title using Thymeleaf ternary operator, fallback to 'EventHub' if pageTitle not provided. by default not provided. -->
+    <!-- th:text replaces element content with server-side value, static text serves as fallback -->
+    <title th:text="${pageTitle != null ? pageTitle + ' - EventHub' : 'EventHub'}">EventHub</title>
+    <!-- Bootstrap CDN for responsive UI framework -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CDN for icon library used throughout navigation -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Style Event Cards, adds some polish-->
+    <link rel="stylesheet" th:href="@{/css/event-cards.css}">
+    <style>
+        /* eventhub brand colors matching design system from example homepage */
+        .navbar-eventhub {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* custom eventhub button styling for consistent brand appearance */
+        .btn-eventhub {
+            background-color: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .btn-eventhub:hover {
+            background-color: #5a67d8;
+            border-color: #5a67d8;
+            color: white;
+        }
+
+        /* Active nav item: no background box */
+        .navbar-eventhub .nav-item.active .nav-link {
+            background-color: transparent;
+            border-radius: 0;
+        }
+
+        /* notification bell icon positioning for badge overlay */
+        .notification-bell {
+            position: relative;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* logout form integration with navbar styling */
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, .75);
+            text-decoration: none;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+        }
+
+        .logout-btn:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, .1);
+        }
+    </style>
+    <!-- th:block serves as logical container for content, removed after server-side rendering -->
+    <!-- th:fragment creates reusable template section that child templates can override -->
+    <th:block th:fragment="head-extra">
+        <!-- files extending laayout can add custom CSS, meta tags, or scripts here -->
+        <!-- example: child template adds page-specific stylesheets or meta descriptions -->
+    </th:block>
+</head>
+
+<body>
+    <!-- main navigation system with role-based access control using Spring Security -->
+    <!-- navbar-expand-lg creates horizontal menu on large screens, collapses to hamburger on mobile -->
+    <!-- navbar-dark provides white text styling for dark backgrounds -->
+    <!-- navbar-eventhub applies custom purple gradient background -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-eventhub">
+        <!-- container class centers navbar content and provides responsive margins -->
+        <div class="container">
+            <!-- brand logo section with EventHub branding -->
+            <!-- th:href generates context-relative URL, static href serves as fallback -->
+            <a class="navbar-brand" href="/" th:href="@{/}">
+                <!-- calendar icon reinforces event management theme -->
+                <!-- me-2 provides Bootstrap margin-end spacing between icon and text -->
+                <i class="fas fa-calendar-alt me-2"></i>EventHub
+            </a>
+
+            <!-- hamburger menu toggle for mobile/tablet responsive navigation -->
+            <!-- data-bs-toggle and data-bs-target work with Bootstrap JavaScript for collapse functionality -->
+            <!-- only visible on smaller screens when navbar-expand-lg threshold not met -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- collapsible navigation content area -->
+            <!-- collapse navbar-collapse classes handle responsive show/hide behavior -->
+            <!-- navbarNav ID links to hamburger button's data-bs-target for mobile toggle -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- primary navigation links positioned on left side of navbar -->
+                <!-- me-auto pushes this ul to the left, making space for right-side auth elements -->
+                <ul class="navbar-nav me-auto">
+                    <!-- home navigation link - always visible to all users -->
+                    <li class="nav-item" >
+                        <a class="nav-link" href="/" th:href="@{/}">
+                            <!-- home icon with consistent spacing pattern -->
+                            <i class="fas fa-home me-1"></i>Home
+                        </a>
+                    </li>
+                    <!-- categories browsing - public feature available to all users -->
+                    <li class="nav-item" th:classappend="${pageTitle}=='Browse Categories' ? ' active' : ''">
+                        <a class="nav-link" href="/categories" th:href="@{/categories}">
+                            <!-- grid icon represents category organization -->
+                            <i class="fas fa-th-large me-1"></i>Browse Categories
+                        </a>
+                    </li>
+
+                    <!-- authenticated user exclusive navigation features -->
+                    <!-- sec:authorize="isAuthenticated()" only renders these elements for logged-in users -->
+                    <!-- Spring Security evaluates authentication state server-side during template rendering -->
+                    <li class="nav-item" sec:authorize="isAuthenticated()" >
+                        <!-- personal event management for authenticated users -->
+                        <a class="nav-link" href="/my-events" th:href="@{/my-events}">
+                            <!-- list icon represents personal event collection -->
+                            <i class="fas fa-list me-1"></i>My Events
+                        </a>
+                    </li>
+                    <li class="nav-item" sec:authorize="isAuthenticated()" >
+                        <!-- event creation functionality restricted to logged-in users -->
+                        <a class="nav-link" href="/events/create" th:href="@{/events/create}">
+                            <!-- plus-circle icon indicates content creation action -->
+                            <i class="fas fa-plus-circle me-1"></i>Create Event
+                        </a>
+                    </li>
+                    <li class="nav-item" sec:authorize="isAuthenticated()" >
+                         <!-- calendar view for authenticated users to manage their schedule -->
+                         <a class="nav-link" href="/events/calendar" th:href="@{/events/calendar}">
+                            <!-- calendar icon represents time/schedule management -->
+                            <i class="fas fa-calendar me-1"></i>Calendar
+                        </a>
+                    </li>
+                    <li class="nav-item" sec:authorize="isAuthenticated()" >
+                        <!-- user profile management for account settings and preferences -->
+                        <a class="nav-link" href="#" onclick="return false;" style="cursor: not-allowed; opacity: 0.6;">
+                            <!-- user icon represents personal account features -->
+                            <i class="fas fa-user me-1"></i>Profile
+                        </a>
+                    </li>
+                    <li class="nav-item" sec:authorize="hasRole('ADMIN')">
+                        <a class="nav-link" href="/admin" th:href="@{/admin}">
+                            <i class="fas fa-tools me-1"></i>Admin
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- authentication and user account section positioned on right side -->
+                <!-- navbar-nav without me-auto stays on the right side of navbar -->
+                <ul class="navbar-nav">
+                    <!-- authentication links for anonymous users -->
+                    <!-- sec:authorize="!isAuthenticated()" only shows these elements when user is NOT logged in -->
+                    <!-- exclamation mark negates the authentication check -->
+                    <li class="nav-item" sec:authorize="!isAuthenticated()" >
+                        <!-- login link for anonymous users to access their accounts -->
+                        <a class="nav-link" href="/login" th:href="@{/login}">
+                            <!-- sign-in icon indicates login action -->
+                            <i class="fas fa-sign-in-alt me-1"></i>Login
+                        </a>
+                    </li>
+                    <li class="nav-item" sec:authorize="!isAuthenticated()" >
+                        <!-- registration link for new users to create accounts -->
+                        <a class="nav-link" href="/register" th:href="@{/register}">
+                            <!-- user-plus icon indicates account creation -->
+                            <i class="fas fa-user-plus me-1"></i>Register
+                        </a>
+                    </li>
+
+                    <!-- authenticated user interface elements -->
+                    <!-- these elements only appear when user is successfully logged in -->
+                    <li class="nav-item" sec:authorize="isAuthenticated()">
+                        <!-- personalised welcome message displaying user's name -->
+                        <!-- navbar-text class provides proper spacing and styling for non-link text -->
+                        <!-- me-3 adds margin-end to create space before logout button -->
+                        <span class="navbar-text ms-2 me-3">
+                            <!-- sec:authentication="name" extracts authenticated username from Spring Security context -->
+                            <!-- "User" serves as fallback text if name extraction fails -->
+                            Welcome, <span sec:authentication="name">User</span>
+                        </span>
+                    </li>
+                    <li class="nav-item" sec:authorize="isAuthenticated()">
+                        <!-- logout form integrated into navbar -->
+                        <!-- th:action generates Spring Security logout endpoint URL -->
+                        <!-- method="post" required by Spring Security for logout processing -->
+                        <!-- logout-form class removes default form margins for navbar integration -->
+                        <form class="logout-form" th:action="@{/logout}" method="post">
+                            <!-- logout button styled to match navbar link appearance -->
+                            <!-- logout-btn class provides custom styling to blend with navbar -->
+                            <!-- type="submit" triggers form submission to Spring Security logout handler -->
+                            <button type="submit" class="logout-btn">
+                                <!-- sign-out icon indicates logout action -->
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- main content container where extending templates insert their specific content -->
+    <!-- main semantic element improves accessibility and document structure -->
+    <main layout:fragment="content">
+        <!-- Layout Dialect will replace this content with extending template's content -->
+        <!-- This placeholder text only appears if extending template doesn't provide content -->
+        <div class="container">
+            <p>Content not loaded</p>
+        </div>
+    </main>
+
+    <!-- site-wide footer with consistent branding and spacing -->
+    <!-- bg-light provides light gray bootstrap background -->
+    <!-- py-4 adds vertical padding, mt-5 adds top margin for separation from main content -->
+    <footer class="bg-light py-4 mt-5">
+        <div class="container text-center">
+            <!-- copyright notice with muted styling -->
+            <!-- text-muted reduces visual weight, mb-0 removes bottom margin -->
+            <p class="text-muted mb-0">&copy; 2025 EventHub - RMIT University</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JavaScript bundle includes Popper.js for responsive navbar functionality -->
+    <!-- required for hamburger menu toggle, dropdown menus, and other interactive components -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- script fragment allows extending templates to add page-specific JavaScript -->
+    <!-- child templates can override this section to include custom scripts, libraries, or inline JS -->
+    <th:block layout:fragment="scripts">
+        <!-- extending templates inject additional JavaScript here -->
+        <!-- example: page-specific event handlers, third-party integrations, analytics -->
+    </th:block>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const scroller = document.getElementById('recommendedScroller');
+            const prevBtn = document.getElementById('scrollPrev');
+            const nextBtn = document.getElementById('scrollNext');
+
+            if (scroller) {
+                nextBtn.addEventListener('click', function() {
+                    // Get the width of the first card to use as scroll amount
+                    const itemWidth = scroller.querySelector('.scrolling-item').offsetWidth;
+                    scroller.scrollBy({ left: itemWidth, behavior: 'smooth' });
+                });
+
+                prevBtn.addEventListener('click', function() {
+                    const itemWidth = scroller.querySelector('.scrolling-item').offsetWidth;
+                    scroller.scrollBy({ left: -itemWidth, behavior: 'smooth' });
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
