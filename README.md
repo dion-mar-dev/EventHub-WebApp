@@ -9,7 +9,7 @@
 
 ### Project landing page
 
-* Dion Marinovic   - Scrum master           - (focus: DevOps & architecture)
+* Dion M   - Scrum master           - (focus: DevOps & architecture)
 * Andre W           - Development team member  - (focus: business analyst/technical writer)
 * Yuyang S        - Development team member  - (focus: QA/testing)
 * Ajay P      - Development team member  - (focus: UI/UX design)
